@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { Product } from "../types/product";
+import { Plus, Minus, ShoppingCart } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { useToast } from "../hooks/use-toast";
+
+interface CartItem extends Product {
+  quantity: number;
+}
+
+interface ProductTableProps {
+  onCartUpdate?: (items: CartItem[]) => void;
+  cartItems?: CartItem[];
+  products: Product[];
+  categories: string[];
+}
+
+const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: ProductTableProps) => {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [cart, setCart] = useState<CartItem[]>(cartItems);
+  const { toast } = useToast();
+
+  const filteredProducts =
+    selectedCategory === "All"
+      ? products
+      : products.filter((product) => product.category === selectedCategory);
+
+  const getQuantityInCart = (productId: string) => {
+    const item = cart.find((item) => item.id === productId);
+    return item ? item.quantity : 0;
+  };
+
+  const updateQuantity = (product: Product, change: number) => {
+    const currentQuantity = getQuantityInCart(product.id);
+    const newQuantity = Math.max(0, currentQuantity + change);
+
+    let updatedCart;
+    if (newQuantity === 0) {
+      updatedCart = cart.filter((item) => item.id !== product.id);
+    } else {
+      const existingItem = cart.find((item) => item.id === product.id);
+      if (existingItem) {
+        updatedCart = cart.map((item) =>
+          item.id === product.id ? { ...item, quantity: newQuantity } : item
+        );
+      } else {
+        updatedCart = [...cart, { ...product, quantity: newQuantity }];
+      }
+    }
+
+    setCart(updatedCart);
+    onCartUpdate?.(updatedCart);
+
+    if (change > 0) {
+      toast({
+        title: "Added to Cart",
+        description: `${product.name} added to cart`,
+        duration: 2000,
+      });
+    }
+  };
+
+  const getTotalItems = () => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Cart Summary */}
+      {cart.length > 0 && (
+        <Card className="card-glow sticky top-4 z-10">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              <span>Cart Summary</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-center text-lg font-semibold">
+              <span>{getTotalItems()} items</span>
+              <span className="text-primary">₹{getTotalPrice()}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Category Filter */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Button
+          onClick={() => setSelectedCategory("All")}
+          variant={selectedCategory === "All" ? "default" : "outline"}
+          className={selectedCategory === "All" ? "btn-festive" : ""}
+        >
+          All
+        </Button>
+        {categories.slice(1).map((category) => (
+          <Button
+            key={category}
+            onClick={() => setSelectedCategory(category)}
+            variant={selectedCategory === category ? "default" : "outline"}
+            className={selectedCategory === category ? "btn-festive" : ""}
+          >
+            {category}
+          </Button>
+        ))}
+      </div>
+
+      {/* Price List Style Product Cards */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredProducts.map((product) => {
+          const qty = getQuantityInCart(product.id);
+          return (
+            <Card key={product.id} className={`card-glow flex flex-col ${!product.inStock ? 'opacity-75' : ''}`}>
+              <div className="relative">
+                <img
+                  src={product.image || "/placeholder.png"} // 👈 show admin-uploaded image
+                  alt={product.name}
+                  className="w-full h-40 object-cover rounded-t-lg"
+                />
+                {!product.inStock && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-lg">
+                    <span className="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">
+                      OUT OF STOCK
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <CardContent className="flex flex-col flex-grow p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">{product.name}</h3>
+                  <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
+                    {product.category}
+                  </span>
+                </div>
+
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {product.description}
+                </p>
+
+                <div className="text-xl font-bold text-primary">
+                  ₹{product.price}
+                </div>
+
+                {/* Stock Status */}
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm px-2 py-1 rounded font-medium ${
+                    product.inStock 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {product.inStock ? 'In Stock' : 'Out of Stock'}
+                  </span>
+                  
+                  {/* Subtotal */}
+                  {qty > 0 && (
+                    <span className="font-semibold text-festive">
+                      ₹{product.price * qty}
+                    </span>
+                  )}
+                </div>
+
+                {/* Quantity Controls */}
+                <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(product, -1)}
+                      disabled={qty === 0}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-8 text-center font-semibold">{qty}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateQuantity(product, 1)}
+                      disabled={!product.inStock}
+                      className={!product.inStock ? 'opacity-50 cursor-not-allowed' : ''}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default ProductTable;
