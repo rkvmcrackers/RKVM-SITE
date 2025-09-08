@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Sparkles } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import logo from "../assets/logo.jpg";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,10 +21,12 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <div className="bg-gradient-to-r from-primary to-secondary p-2 rounded-lg shadow-lg group-hover:shadow-xl transition-all duration-300">
-              <Sparkles className="h-6 w-6 text-primary-foreground" />
-            </div>
+          <Link to="/" className="flex items-center space-x-3 group -ml-4 sm:-ml-8 md:-ml-12 lg:-ml-16">
+            <img 
+              src={logo} 
+              alt="RKVM Crackers Logo" 
+              className="h-14 w-40 object-contain rounded-lg group-hover:scale-105 transition-all duration-300"
+            />
             <div>
               <h1 className="text-xl font-bold text-foreground">RKVM Crackers</h1>
               <p className="text-xs text-muted-foreground">Festival Fireworks</p>

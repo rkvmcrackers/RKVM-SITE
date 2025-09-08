@@ -108,21 +108,9 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Auto-logout when tab is closed or becomes hidden
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Tab is hidden (minimized, switched, or closed)
-        localStorage.removeItem("adminLoggedIn");
-        localStorage.removeItem("adminUsername");
-        navigate("/admin");
-      }
-    };
+    // Note: Removed auto-logout on tab visibility change to prevent logout when switching tabs
 
-    // Auto-logout when tab is closed
-    const handleBeforeUnload = () => {
-      localStorage.removeItem("adminLoggedIn");
-      localStorage.removeItem("adminUsername");
-    };
+    // Note: Removed beforeunload handler to prevent logout on page refresh
 
     // Auto-logout after 30 minutes of inactivity
     let inactivityTimer: NodeJS.Timeout;
@@ -146,8 +134,7 @@ const AdminDashboard = () => {
     };
 
     // Set up event listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    // Note: Removed beforeunload listener to prevent logout on page refresh
     
     // Reset inactivity timer on user activity
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
@@ -160,8 +147,6 @@ const AdminDashboard = () => {
 
     // Cleanup function
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       activityEvents.forEach(event => {
         document.removeEventListener(event, resetInactivityTimer, true);
       });
@@ -240,8 +225,8 @@ const AdminDashboard = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.price || !formData.category || !formData.description) {
-      setError("All fields are required");
+    if (!formData.name || !formData.price || !formData.category) {
+      setError("Name, price, and category are required");
       return;
     }
 
@@ -1368,14 +1353,13 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter product description"
+                  placeholder="Enter product description (optional)"
                   rows={3}
-                  required
                 />
               </div>
 
@@ -1521,14 +1505,13 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description *</Label>
+                <Label htmlFor="edit-description">Description</Label>
                 <Textarea
                   id="edit-description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter product description"
+                  placeholder="Enter product description (optional)"
                   rows={3}
-                  required
                 />
               </div>
 
