@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Product } from "../types/product";
 import { Plus, Minus, ShoppingCart, ZoomIn } from "lucide-react";
 import { Button } from "./ui/button";
@@ -24,11 +24,33 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const { toast } = useToast();
+  
+  // Ref for scrolling to products section
+  const productsSectionRef = useRef<HTMLDivElement>(null);
 
   const filteredProducts =
     selectedCategory === "All"
       ? products
       : products.filter((product) => product.category === selectedCategory);
+
+  // Function to scroll to products section
+  const scrollToProducts = () => {
+    if (productsSectionRef.current) {
+      productsSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  };
+
+  // Enhanced category filter handler with scroll
+  const handleCategoryFilter = (category: string) => {
+    setSelectedCategory(category);
+    // Small delay to ensure state update before scrolling
+    setTimeout(() => {
+      scrollToProducts();
+    }, 100);
+  };
 
   const getQuantityInCart = (productId: string) => {
     const item = cart.find((item) => item.id === productId);
@@ -105,7 +127,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
       {/* Category Filter */}
       <div className="flex flex-wrap gap-2 mb-6">
         <Button
-          onClick={() => setSelectedCategory("All")}
+          onClick={() => handleCategoryFilter("All")}
           variant={selectedCategory === "All" ? "default" : "outline"}
           className={selectedCategory === "All" ? "btn-festive" : ""}
         >
@@ -114,7 +136,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
         {categories.slice(1).map((category) => (
           <Button
             key={category}
-            onClick={() => setSelectedCategory(category)}
+            onClick={() => handleCategoryFilter(category)}
             variant={selectedCategory === category ? "default" : "outline"}
             className={selectedCategory === category ? "btn-festive" : ""}
           >
@@ -124,7 +146,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
       </div>
 
       {/* Price List Style Product Cards */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={productsSectionRef} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProducts.map((product) => {
           const qty = getQuantityInCart(product.id);
           return (

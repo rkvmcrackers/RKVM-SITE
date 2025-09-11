@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useProducts } from "../hooks/use-products";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Search, Download, Sparkles, ZoomIn } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Search, Download, Sparkles, ZoomIn, Filter, SortAsc, SortDesc } from "lucide-react";
 
 const PriceList = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -13,16 +14,84 @@ const PriceList = () => {
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
+  const [sortField, setSortField] = useState<"name" | "price" | "category">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { products, categories, loading, error } = useProducts();
+  
+  // Ref for scrolling to products section
+  const productsSectionRef = useRef<HTMLDivElement>(null);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory =
-      selectedCategory === "All" || product.category === selectedCategory;
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const filteredProducts = products
+    .filter((product) => {
+      const matchesCategory =
+        selectedCategory === "All" || product.category === selectedCategory;
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    })
+    .sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case "name":
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case "price":
+          aValue = a.price;
+          bValue = b.price;
+          break;
+        case "category":
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+  const handleSort = (field: "name" | "price" | "category") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Function to scroll to products section
+  const scrollToProducts = () => {
+    if (productsSectionRef.current) {
+      productsSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  };
+
+  // Enhanced category filter handler with scroll
+  const handleCategoryFilter = (category: string) => {
+    setSelectedCategory(category);
+    // Small delay to ensure state update before scrolling
+    setTimeout(() => {
+      scrollToProducts();
+    }, 100);
+  };
+
+  // Enhanced search handler with scroll
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    // Small delay to ensure state update before scrolling
+    setTimeout(() => {
+      scrollToProducts();
+    }, 100);
+  };
 
   // Handle image click for popup
   const handleImageClick = (imageUrl: string, productName: string) => {
@@ -120,31 +189,41 @@ Thank you for choosing RKVM Crackers! 🎆
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Search and Filter */}
-        <div className="mb-8 space-y-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                variant={selectedCategory === category ? "default" : "outline"}
-                className={selectedCategory === category ? "btn-festive" : ""}
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-        </div>
+        {/* Search and Filter Controls */}
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filter by Category:</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <Button
+                    key={category}
+                    onClick={() => handleCategoryFilter(category)}
+                    variant={selectedCategory === category ? "default" : "outline"}
+                    size="sm"
+                    className={selectedCategory === category ? "btn-festive" : ""}
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Loading and Error States */}
         {loading && (
@@ -162,81 +241,239 @@ Thank you for choosing RKVM Crackers! 🎆
           </div>
         )}
 
-        {/* Results Count */}
+        {/* Results Count and Summary */}
         {!loading && !error && (
           <div className="mb-6">
-            <p className="text-muted-foreground">
-              Showing {filteredProducts.length} product
-              {filteredProducts.length !== 1 ? "s" : ""}
-              {selectedCategory !== "All" && ` in ${selectedCategory}`}
-              {searchTerm && ` matching "${searchTerm}"`}
-            </p>
+            {/* Active Filters Indicator */}
+            {(selectedCategory !== "All" || searchTerm) && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-blue-700 font-medium">Active Filters:</span>
+                  {selectedCategory !== "All" && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      Category: {selectedCategory}
+                    </Badge>
+                  )}
+                  {searchTerm && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedCategory("All");
+                      setSearchTerm("");
+                      scrollToProducts();
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <p className="text-muted-foreground">
+                  Showing {filteredProducts.length} product
+                  {filteredProducts.length !== 1 ? "s" : ""}
+                  {selectedCategory !== "All" && ` in ${selectedCategory}`}
+                  {searchTerm && ` matching "${searchTerm}"`}
+                </p>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Total Value: ₹{filteredProducts.reduce((sum, product) => sum + product.price, 0).toLocaleString('en-IN')}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Mobile-First Product Display */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className={`card-glow hover:scale-105 transition-all duration-300 ${!product.inStock ? 'opacity-75' : ''}`}
-              >
-                <div className="relative">
-                  {/* ✅ Show Admin Uploaded Image OR fallback placeholder */}
-                  <div 
-                    className="relative cursor-pointer group"
-                    onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
-                  >
-                    <img
-                      src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
-                      alt={product.name}
-                      className="w-full h-40 object-cover rounded-t-2xl transition-opacity duration-200 group-hover:opacity-80"
-                    />
-                    {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-t-2xl flex items-center justify-center transition-all duration-200">
-                        <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" />
-                      </div>
-                    )}
-                  </div>
-                  {!product.inStock && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-2xl">
-                      <span className="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">
-                        OUT OF STOCK
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <CardTitle className="text-lg leading-tight">
-                      {product.name}
-                    </CardTitle>
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      {product.category}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {product.description}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div className="text-2xl font-bold text-primary">
-                      ₹{product.price}
-                    </div>
-                    <span className={`text-sm px-2 py-1 rounded font-medium ${
-                      product.inStock 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.inStock ? 'In Stock' : 'Out of Stock'}
-                    </span>
+          <div ref={productsSectionRef} className="space-y-4">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table className="w-full">
+                      <TableHeader className="bg-gray-50">
+                        <TableRow className="border-b-2 border-gray-200">
+                          <TableHead className="w-16 px-4 py-4 text-center font-semibold text-gray-700">
+                            Image
+                          </TableHead>
+                          <TableHead 
+                            className="px-4 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Product Name
+                              {sortField === "name" && (
+                                sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            className="px-4 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort("category")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Category
+                              {sortField === "category" && (
+                                sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead className="px-4 py-4 font-semibold text-gray-700">
+                            Description
+                          </TableHead>
+                          <TableHead 
+                            className="px-4 py-4 font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors text-right"
+                            onClick={() => handleSort("price")}
+                          >
+                            <div className="flex items-center justify-end gap-2">
+                              Price
+                              {sortField === "price" && (
+                                sortDirection === "asc" ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead className="px-4 py-4 font-semibold text-gray-700 text-center">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProducts.map((product, index) => (
+                          <TableRow 
+                            key={product.id} 
+                            className={`border-b hover:bg-gray-50 transition-colors ${
+                              !product.inStock ? 'opacity-60' : ''
+                            } ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
+                          >
+                            <TableCell className="px-4 py-4 text-center">
+                              <div 
+                                className="relative cursor-pointer group inline-block"
+                                onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
+                              >
+                                <img
+                                  src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
+                                  alt={product.name}
+                                  className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
+                                />
+                                {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
+                                    <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-4">
+                              <div className="font-semibold text-gray-900 text-lg">
+                                {product.name}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-4">
+                              <Badge variant="secondary" className="text-xs">
+                                {product.category}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="px-4 py-4">
+                              <div className="text-sm text-gray-600 max-w-xs">
+                                {product.description}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-4 text-right">
+                              <div className="text-2xl font-bold text-primary">
+                                ₹{product.price.toLocaleString('en-IN')}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-4 py-4 text-center">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                product.inStock 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {product.inStock ? 'In Stock' : 'Out of Stock'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-3">
+              {filteredProducts.map((product) => (
+                <Card 
+                  key={product.id} 
+                  className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
+                    !product.inStock ? 'opacity-75' : ''
+                  }`}
+                >
+                  <div className="flex">
+                    {/* Product Image */}
+                    <div className="flex-shrink-0 w-24 h-24 p-3">
+                      <div 
+                        className="relative cursor-pointer group w-full h-full"
+                        onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
+                      >
+                        <img
+                          src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
+                          alt={product.name}
+                          className="w-full h-full object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
+                        />
+                        {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
+                            <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="flex-1 p-3 min-w-0">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-base leading-tight mb-1">
+                            {product.name}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs mb-2">
+                            {product.category}
+                          </Badge>
+                        </div>
+                        <div className="text-right ml-2">
+                          <div className="text-xl font-bold text-primary">
+                            ₹{product.price.toLocaleString('en-IN')}
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${
+                            product.inStock 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {product.inStock ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 overflow-hidden" style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                      }}>
+                        {product.description}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
@@ -249,6 +486,7 @@ Thank you for choosing RKVM Crackers! 🎆
               onClick={() => {
                 setSelectedCategory("All");
                 setSearchTerm("");
+                scrollToProducts();
               }}
               variant="outline"
             >

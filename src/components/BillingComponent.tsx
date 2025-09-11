@@ -5,7 +5,8 @@ import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { Printer, Download, Eye, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Printer, Download, Eye, X, Search, Filter } from 'lucide-react';
 import { Product } from '../types/product';
 import jsPDF from 'jspdf';
 
@@ -17,9 +18,10 @@ interface BillingItem {
 
 interface BillingComponentProps {
   products: Product[];
+  categories: string[];
 }
 
-const BillingComponent: React.FC<BillingComponentProps> = ({ products }) => {
+const BillingComponent: React.FC<BillingComponentProps> = ({ products, categories }) => {
   const [selectedItems, setSelectedItems] = useState<BillingItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -30,6 +32,10 @@ const BillingComponent: React.FC<BillingComponentProps> = ({ products }) => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Filter states
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Company details (static)
   const companyDetails = {
@@ -38,6 +44,14 @@ const BillingComponent: React.FC<BillingComponentProps> = ({ products }) => {
     email: 'rkvmpyrotech2021@gmail.com',
     address: 'RKVM Crackers, India'
   };
+
+  // Filter products
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleProductSelect = (product: Product, checked: boolean) => {
     if (checked) {
@@ -425,100 +439,181 @@ const BillingComponent: React.FC<BillingComponentProps> = ({ products }) => {
             </div>
           </div>
 
-          {/* Product Selection - Mobile First */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Select Products</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product) => {
-                const isSelected = selectedItems.some(item => item.product.id === product.id);
-                const selectedItem = selectedItems.find(item => item.product.id === product.id);
+          {/* Search and Filter Controls */}
+          <Card className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Search & Filter Products</h3>
+                <Badge variant="outline" className="text-sm">
+                  {filteredProducts.length} products found
+                </Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search products by name or description..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Category:</span>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Categories</SelectItem>
+                      {categories.slice(1).map((category) => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </Card>
 
-                return (
-                  <Card key={product.id} className={`${isSelected ? 'ring-2 ring-primary' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start space-x-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={(checked) => handleProductSelect(product, checked as boolean)}
-                        />
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium text-sm">{product.name}</h4>
-                            <Badge variant={product.inStock ? "default" : "secondary"}>
-                              {product.inStock ? "In Stock" : "Out of Stock"}
-                            </Badge>
+          {/* Product Selection */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Select Products</CardTitle>
+                <Badge variant="outline">
+                  {selectedItems.length} selected
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProducts.map((product) => {
+                  const isSelected = selectedItems.some(item => item.product.id === product.id);
+                  const selectedItem = selectedItems.find(item => item.product.id === product.id);
+
+                  return (
+                    <Card key={product.id} className={`transition-all duration-200 hover:shadow-md ${
+                      isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:shadow-sm'
+                    }`}>
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) => handleProductSelect(product, checked as boolean)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm leading-tight">{product.name}</h4>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-primary text-sm">₹{product.price}</div>
+                              <Badge variant={product.inStock ? "default" : "secondary"} className="text-xs mt-1">
+                                {product.inStock ? "In Stock" : "Out of Stock"}
+                              </Badge>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-500">{product.description}</p>
-                          <p className="font-semibold text-primary">₹{product.price}</p>
 
                           {isSelected && (
-                            <div className="flex items-center space-x-2">
-                              <Label htmlFor={`qty-${product.id}`} className="text-xs">Qty:</Label>
-                              <Input
-                                id={`qty-${product.id}`}
-                                type="number"
-                                min="1"
-                                value={selectedItem?.quantity || 1}
-                                onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 1)}
-                                className="w-16 h-8 text-xs"
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => removeItem(product.id)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <div className="flex items-center space-x-2">
+                                <Label htmlFor={`qty-${product.id}`} className="text-xs">Quantity:</Label>
+                                <Input
+                                  id={`qty-${product.id}`}
+                                  type="number"
+                                  min="1"
+                                  value={selectedItem?.quantity || 1}
+                                  onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 1)}
+                                  className="w-20 h-8 text-xs"
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium text-primary">
+                                  ₹{selectedItem?.price || product.price}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => removeItem(product.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              
+              {filteredProducts.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No products found matching your criteria</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Bill Summary */}
+          {/* Bill Summary & Actions */}
           {selectedItems.length > 0 && (
-            <Card className="border-primary">
+            <Card className="border-primary bg-gradient-to-r from-primary/5 to-primary/10">
               <CardHeader>
-                <CardTitle className="text-lg">Bill Summary</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Bill Summary</span>
+                  <Badge variant="outline" className="text-sm">
+                    {selectedItems.length} items
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-40 overflow-y-auto">
                   {selectedItems.map((item, index) => (
-                    <div key={item.product.id} className="flex justify-between items-center">
-                      <span className="text-sm">
-                        {index + 1}. {item.product.name} x{item.quantity}
+                    <div key={item.product.id} className="flex justify-between items-center text-sm py-1">
+                      <span className="truncate flex-1 mr-2">
+                        {index + 1}. {item.product.name} × {item.quantity}
                       </span>
-                      <span className="font-medium">₹{item.price}</span>
+                      <span className="font-medium text-primary">₹{item.price}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>₹{calculateSubtotal().toFixed(2)}</span>
+                  <div className="flex justify-between text-base">
+                    <span className="font-medium">Subtotal:</span>
+                    <span className="font-semibold">₹{calculateSubtotal().toFixed(2)}</span>
                   </div>
-
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total:</span>
+                  <div className="flex justify-between text-xl font-bold text-primary">
+                    <span>Total Amount:</span>
                     <span>₹{calculateTotal().toFixed(2)}</span>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button onClick={previewBill} variant="outline" className="flex-1 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <Button 
+                    onClick={previewBill} 
+                    variant="outline" 
+                    className="flex-1"
+                  >
                     <Eye className="h-4 w-4 mr-2" />
                     Preview Bill
                   </Button>
-                  <Button onClick={generatePDF} className="flex-1 w-full sm:w-auto" disabled={isGeneratingPDF}>
-                    <Download className="h-4 w-4 mr-2" />
-                    {isGeneratingPDF ? 'Generating...' : 'Generate PDF'}
+                  <Button 
+                    onClick={generatePDF} 
+                    className="flex-1 btn-festive text-lg py-3" 
+                    disabled={isGeneratingPDF}
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    {isGeneratingPDF ? 'Generating...' : 'Generate Bill'}
                   </Button>
                 </div>
               </CardContent>

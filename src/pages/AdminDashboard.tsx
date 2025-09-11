@@ -1606,7 +1606,7 @@ const AdminDashboard = () => {
            {/* Billing Tab */}
            <TabsContent value="billing" className="space-y-6">
              <h2 className="text-xl font-semibold text-gray-900">Billing & Invoicing</h2>
-             <BillingComponent products={products} />
+             <BillingComponent products={products} categories={categories} />
            </TabsContent>
 
            {/* Settings Tab */}
