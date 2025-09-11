@@ -6,7 +6,7 @@
     "category": "One crackers sound",
     "description": "Traditional single sound crackers with loud bang effect",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "2",
@@ -15,7 +15,7 @@
     "category": "One crackers sound",
     "description": "High-quality single sound crackers with enhanced audio effect",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "3",
@@ -24,7 +24,7 @@
     "category": "Flower pots",
     "description": "Beautiful flower pot crackers with colorful sparkles",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "4",
@@ -33,7 +33,7 @@
     "category": "Flower pots",
     "description": "Premium flower pot crackers with multiple color effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "5",
@@ -42,7 +42,7 @@
     "category": "Ground crackers",
     "description": "Exciting ground crackers that spin and create visual effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "6",
@@ -51,7 +51,7 @@
     "category": "Ground crackers",
     "description": "Ground crackers with multiple color combinations",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "7",
@@ -60,7 +60,7 @@
     "category": "Rockets",
     "description": "High-flying rockets with spectacular aerial display",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "8",
@@ -69,7 +69,7 @@
     "category": "Rockets",
     "description": "Advanced rockets with multiple stages and effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "9",
@@ -78,7 +78,7 @@
     "category": "Twinkling star",
     "description": "Beautiful twinkling star crackers with star-shaped effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "10",
@@ -87,7 +87,7 @@
     "category": "Twinkling star",
     "description": "Premium twinkling star crackers with golden effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "11",
@@ -96,7 +96,7 @@
     "category": "Bijli Crackers",
     "description": "Electric effect crackers with lightning-like visual",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "12",
@@ -105,7 +105,7 @@
     "category": "Bijli Crackers",
     "description": "Enhanced bijli crackers with intense electric effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "13",
@@ -114,7 +114,7 @@
     "category": "Festival zone - special",
     "description": "Special festival zone crackers with multiple effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "14",
@@ -123,7 +123,7 @@
     "category": "Deluxe - special",
     "description": "Deluxe special crackers with premium effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "15",
@@ -132,7 +132,7 @@
     "category": "Bullet & Auto Bombs",
     "description": "High-impact bullet crackers with loud sound",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "16",
@@ -141,7 +141,7 @@
     "category": "Bullet & Auto Bombs",
     "description": "Automatic bomb crackers with delayed explosion",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "17",
@@ -150,7 +150,7 @@
     "category": "Fountain & Blast",
     "description": "Beautiful fountain crackers with water-like effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "18",
@@ -159,7 +159,7 @@
     "category": "Fountain & Blast",
     "description": "High-impact blast crackers with powerful effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "19",
@@ -168,7 +168,7 @@
     "category": "Paper bomb",
     "description": "Traditional paper bomb crackers with classic sound",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "20",
@@ -177,7 +177,7 @@
     "category": "Cartoon's & Fancy",
     "description": "Fun cartoon-themed crackers for children",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "21",
@@ -186,7 +186,7 @@
     "category": "Cartoon's & Fancy",
     "description": "Beautifully designed fancy crackers with unique patterns",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "22",
@@ -195,7 +195,7 @@
     "category": "Magical Happy showers & Fountain",
     "description": "Magical shower crackers with colorful rain effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "23",
@@ -204,7 +204,7 @@
     "category": "Feather fantasy",
     "description": "Elegant feather fantasy crackers with soft effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "24",
@@ -213,7 +213,7 @@
     "category": "Glitter hand shower",
     "description": "Hand-held glitter shower crackers for safe play",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "25",
@@ -222,7 +222,7 @@
     "category": "Discover the new age of crackers",
     "description": "Revolutionary new age crackers with modern effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "26",
@@ -231,7 +231,7 @@
     "category": "Children special",
     "description": "Safe and fun crackers specially designed for children",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "27",
@@ -240,7 +240,7 @@
     "category": "Sparklers",
     "description": "Traditional sparklers with golden sparkle effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "28",
@@ -249,7 +249,7 @@
     "category": "Sparklers",
     "description": "Multi-color sparklers with vibrant effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "29",
@@ -258,7 +258,7 @@
     "category": "Single shot fancy",
     "description": "Single shot fancy crackers with unique effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "30",
@@ -267,7 +267,7 @@
     "category": "Repeating multi colour",
     "description": "Repeating multi-color crackers with continuous effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "31",
@@ -276,7 +276,7 @@
     "category": "Blue star fancy",
     "description": "Beautiful blue star fancy crackers with star effects",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "32",
@@ -285,7 +285,7 @@
     "category": "Aerial crackling",
     "description": "High-altitude aerial crackers with crackling sound",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   },
   {
     "id": "33",
@@ -294,6 +294,6 @@
     "category": "Gift boxes net rate",
     "description": "Special gift box with assorted crackers at net rate",
     "inStock": true,
-    "image": ""
+    "image": "/images/placeholder.svg"
   }
 ]

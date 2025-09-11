@@ -1,806 +1,3 @@
-import { useState, useEffect } from "react";
-import { clearAllData, checkDataStatus } from "../utils/clear-all-data";
-import { useNavigate } from "react-router-dom";
-import { useLocalStorage } from "../hooks/use-local-storage";
-import { useProducts } from "../hooks/use-products";
-import { useHighlights } from "../hooks/use-highlights";
-import { useToast } from "../hooks/use-toast";
-import * as XLSX from 'xlsx';
-
-import { useOrders } from "../hooks/use-orders";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Textarea } from "../components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
-import { Alert, AlertDescription } from "../components/ui/alert";
-import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  LogOut, 
-  Package, 
-  Image as ImageIcon,
-  Save,
-  X,
-  Megaphone,
-  RotateCcw,
-  ShoppingCart,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  Calendar,
-  Receipt
-} from "lucide-react";
-import { Product } from "../types/product";
-import { Order } from "../hooks/use-orders";
-import GitHubTest from "../components/GitHubTest";
-import BillingComponent from "../components/BillingComponent";
-
-interface AdminProduct extends Product {
-  imageUrl?: string;
-}
-
-const AdminDashboard = () => {
-  const { products, categories, addProduct, bulkAddProducts, updateProduct, deleteProduct, refreshProducts } = useProducts();
-  const { highlights, addHighlight, removeHighlight, updateHighlight, resetToBase: resetHighlights } = useHighlights();
-  const { toast } = useToast();
-
-  const { orders, loading: ordersLoading, updateOrderStatus, deleteOrder, getTotalRevenue, getTotalRevenueIncludingCancelled, getCancelledOrdersAmount, getOrdersCountByStatus } = useOrders();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [lastUploadTime, setLastUploadTime] = useState(0);
-  const [formData, setFormData] = useState({
-    name: "",
-    price: "",
-    category: "",
-    description: "",
-    inStock: true,
-    imageUrl: ""
-  });
-  const [imagePreview, setImagePreview] = useState<string>("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [newHighlight, setNewHighlight] = useState("");
-  const [editingHighlightIndex, setEditingHighlightIndex] = useState<number | null>(null);
-  const [editingHighlightText, setEditingHighlightText] = useState("");
-  const [activeTab, setActiveTab] = useState("products");
-  const [highlightsLoading, setHighlightsLoading] = useState(false);
-  const [highlightsError, setHighlightsError] = useState<string | null>(null);
-  const [showSessionWarning, setShowSessionWarning] = useState(false);
-  
-  // Bulk upload state
-  const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
-  const [parsedProducts, setParsedProducts] = useState<AdminProduct[]>([]);
-  const [bulkUploadError, setBulkUploadError] = useState("");
-  const [bulkUploadSuccess, setBulkUploadSuccess] = useState("");
-  const [isBulkUploading, setIsBulkUploading] = useState(false);
-  const [bulkUploadProgress, setBulkUploadProgress] = useState(0);
-  
-  // Offset state variables for each metric
-  // These values persist in localStorage across page refreshes
-  const [offsetProducts, setOffsetProducts] = useState(() => {
-    const saved = localStorage.getItem('offsetProducts');
-    return saved ? parseInt(saved) : 0;
-  });
-  const [offsetOrders, setOffsetOrders] = useState(() => {
-    const saved = localStorage.getItem('offsetOrders');
-    return saved ? parseInt(saved) : 0;
-  });
-  const [offsetRevenue, setOffsetRevenue] = useState(() => {
-    const saved = localStorage.getItem('offsetRevenue');
-    return saved ? parseInt(saved) : 0;
-  });
-  const [offsetGrossRevenue, setOffsetGrossRevenue] = useState(() => {
-    const saved = localStorage.getItem('offsetGrossRevenue');
-    return saved ? parseInt(saved) : 0;
-  });
-  const [offsetPendingOrders, setOffsetPendingOrders] = useState(() => {
-    const saved = localStorage.getItem('offsetPendingOrders');
-    return saved ? parseInt(saved) : 0;
-  });
-  const [offsetBillingReady, setOffsetBillingReady] = useState(() => {
-    const saved = localStorage.getItem('offsetBillingReady');
-    return saved ? parseInt(saved) : 0;
-  });
-  
-  const navigate = useNavigate();
-
-  // Check authentication and add auto-logout functionality
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem("adminLoggedIn") === "true";
-    if (!isLoggedIn) {
-      navigate("/admin");
-      return;
-    }
-
-    // Note: Removed auto-logout on tab visibility change to prevent logout when switching tabs
-
-    // Note: Removed beforeunload handler to prevent logout on page refresh
-
-    // Auto-logout after 30 minutes of inactivity
-    let inactivityTimer: NodeJS.Timeout;
-    let warningTimer: NodeJS.Timeout;
-    
-    const resetInactivityTimer = () => {
-      clearTimeout(inactivityTimer);
-      clearTimeout(warningTimer);
-      
-      // Show warning after 25 minutes
-      warningTimer = setTimeout(() => {
-        setShowSessionWarning(true);
-      }, 25 * 60 * 1000); // 25 minutes
-      
-      // Logout after 30 minutes
-      inactivityTimer = setTimeout(() => {
-        localStorage.removeItem("adminLoggedIn");
-        localStorage.removeItem("adminUsername");
-        navigate("/admin");
-      }, 30 * 60 * 1000); // 30 minutes
-    };
-
-    // Set up event listeners
-    // Note: Removed beforeunload listener to prevent logout on page refresh
-    
-    // Reset inactivity timer on user activity
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    activityEvents.forEach(event => {
-      document.addEventListener(event, resetInactivityTimer, true);
-    });
-
-    // Start inactivity timer
-    resetInactivityTimer();
-
-    // Cleanup function
-    return () => {
-      activityEvents.forEach(event => {
-        document.removeEventListener(event, resetInactivityTimer, true);
-      });
-      clearTimeout(inactivityTimer);
-      clearTimeout(warningTimer);
-    };
-  }, [navigate]);
-
-
-
-  // Compress image to reduce file size
-  const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.8): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Calculate new dimensions
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        
-        // Set canvas dimensions
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Draw and compress
-        ctx?.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedDataUrl);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  // Handle image upload
-  const handleImageUpload = async (file: File) => {
-    if (file) {
-      try {
-        // Show loading state
-        setImagePreview("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y3ZjdmNyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5VcGxvYWRpbmcuLi48L3RleHQ+PC9zdmc+");
-        
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          throw new Error('Please select a valid image file');
-        }
-        
-        // Validate file size (max 10MB before compression)
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error('Image size must be less than 10MB');
-        }
-        
-        // Compress and convert image to base64
-        const base64Image = await compressImage(file, 800, 0.8);
-        
-        // Set the base64 image as preview and form data
-        setImagePreview(base64Image);
-        setFormData(prev => ({ ...prev, imageUrl: base64Image }));
-        
-        // Show success toast notification
-        toast({
-          title: "✅ Image Uploaded Successfully!",
-          description: `Image compressed and ready to use (${Math.round(file.size / 1024)}KB → ${Math.round(base64Image.length * 0.75 / 1024)}KB)`,
-          duration: 4000,
-        });
-        
-        console.log('Image uploaded and compressed successfully!');
-        
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        
-        // Show error toast notification
-        toast({
-          title: "❌ Image Upload Failed",
-          description: error instanceof Error ? error.message : 'Failed to upload image',
-          variant: "destructive",
-          duration: 5000,
-        });
-        
-        // Fallback to placeholder image
-        const placeholderUrl = '/images/placeholder.svg';
-        setImagePreview(placeholderUrl);
-        setFormData(prev => ({ ...prev, imageUrl: placeholderUrl }));
-        
-        console.log('Using placeholder image. Product will still be saved.');
-      }
-    }
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      price: "",
-      category: "",
-      description: "",
-      inStock: true,
-      imageUrl: ""
-    });
-    setImagePreview("");
-    setError("");
-    
-    // Clear file input
-    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
-    fileInputs.forEach(input => {
-      if (input.id === 'name' || input.id === 'edit-name') {
-        // Skip name inputs, only clear file inputs
-        return;
-      }
-      input.value = '';
-    });
-  };
-
-  // Open add dialog
-  const openAddDialog = () => {
-    resetForm();
-    setIsAddDialogOpen(true);
-  };
-
-  // Open edit dialog
-  const openEditDialog = (product: AdminProduct) => {
-    setFormData({
-      name: product.name,
-      price: product.price.toString(),
-      category: product.category,
-      description: product.description,
-      inStock: product.inStock,
-      imageUrl: product.imageUrl || ""
-    });
-    setImagePreview(product.imageUrl || "");
-    setEditingProduct(product);
-    setIsEditDialogOpen(true);
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.price || !formData.category) {
-      setError("Name, price, and category are required");
-      return;
-    }
-
-    const price = parseFloat(formData.price);
-    if (isNaN(price) || price <= 0) {
-      setError("Please enter a valid price");
-      return;
-    }
-
-    // Prevent concurrent uploads
-    if (isUploading) {
-      toast({
-        title: "⏳ Upload in Progress",
-        description: "Please wait for the current upload to complete before trying again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    // Prevent rapid successive uploads (debounce)
-    const now = Date.now();
-    if (now - lastUploadTime < 3000) { // 3 second debounce to avoid conflicts
-      toast({
-        title: "⏳ Please Wait",
-        description: "Please wait 3 seconds between uploads to avoid conflicts.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setIsUploading(true);
-    setLastUploadTime(now);
-    setError("");
-
-    try {
-      let operationSuccess = false;
-      
-      if (editingProduct) {
-        // Edit existing product
-        const success = await updateProduct(editingProduct.id, {
-          name: formData.name,
-          price,
-          category: formData.category,
-          description: formData.description,
-          inStock: formData.inStock,
-          image: formData.imageUrl || "/images/placeholder.svg"
-        });
-        
-        if (success) {
-          setSuccess('Product updated successfully!');
-          
-          // Show success toast notification
-          toast({
-            title: "✅ Product Updated Successfully!",
-            description: `${formData.name} has been updated with new image processed.`,
-            duration: 4000,
-          });
-          
-          operationSuccess = true;
-        } else {
-          setError('Failed to update product. Please try again.');
-          
-          // Show error toast notification
-          toast({
-            title: "❌ Product Update Failed",
-            description: "Failed to update product. Please try again.",
-            variant: "destructive",
-            duration: 4000,
-          });
-        }
-      } else {
-        // Add new product
-        const success = await addProduct({
-          name: formData.name,
-          price,
-          category: formData.category,
-          description: formData.description,
-          inStock: formData.inStock,
-          image: formData.imageUrl || "/images/placeholder.svg"
-        });
-        
-        if (success) {
-          setSuccess('Product added successfully!');
-          
-          // Show success toast notification
-          toast({
-            title: "✅ Product Added Successfully!",
-            description: `${formData.name} has been added to your inventory with image processed.`,
-            duration: 4000,
-          });
-          
-          operationSuccess = true;
-        } else {
-          setError('Failed to add product. Please try again.');
-          
-          // Show error toast notification
-          toast({
-            title: "❌ Product Addition Failed",
-            description: "Failed to add product. Please try again.",
-            variant: "destructive",
-            duration: 4000,
-          });
-        }
-      }
-
-      if (operationSuccess) {
-        resetForm();
-        setIsAddDialogOpen(false);
-        setIsEditDialogOpen(false);
-        setEditingProduct(null);
-      }
-    } catch (err) {
-      setError("An error occurred while saving the product");
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-      setIsUploading(false);
-    }
-  };
-
-  // Delete product
-  const handleDeleteProduct = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        const success = await deleteProduct(id);
-        if (success) {
-          console.log('Product has been deleted successfully!');
-        } else {
-          console.log('Failed to delete product. Please try again.');
-        }
-      } catch (err) {
-        console.error(err);
-        console.log('An error occurred while deleting the product.');
-      }
-    }
-  };
-
-  // Clean up products data (remove base64 images)
-  const handleCleanProducts = async () => {
-    if (window.confirm("This will remove all base64 images from products and replace them with placeholder URLs. Continue?")) {
-      try {
-        // Feature temporarily disabled
-        setSuccess("Products cleaned successfully! Base64 images removed.");
-        setTimeout(() => setSuccess(""), 5000);
-        // Refresh the page to reload products
-        window.location.reload();
-      } catch (err) {
-        setError("Failed to clean products data");
-        console.error(err);
-      }
-    }
-  };
-
-  // Upload clean products to GitHub
-  const handleUploadCleanProducts = async () => {
-    if (window.confirm("This will upload the clean products.json to GitHub. Continue?")) {
-      try {
-        const success = true; // Feature temporarily disabled
-        if (success) {
-          setSuccess("Clean products uploaded to GitHub successfully!");
-          setTimeout(() => setSuccess(""), 5000);
-        } else {
-          setError("Failed to upload clean products to GitHub");
-        }
-      } catch (err) {
-        setError("Failed to upload clean products");
-        console.error(err);
-      }
-    }
-  };
-
-  // Update order status
-  const handleOrderStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
-    try {
-      const success = await updateOrderStatus(orderId, newStatus);
-      if (success) {
-        setSuccess("Order status updated successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError("Failed to update order status");
-      }
-    } catch (err) {
-      setError("An error occurred while updating order status");
-      console.error(err);
-    }
-  };
-
-  // Delete order
-  const handleDeleteOrder = async (orderId: string) => {
-    if (window.confirm("Are you sure you want to delete this order?")) {
-      try {
-        const success = await deleteOrder(orderId);
-        if (success) {
-          setSuccess("Order deleted successfully!");
-          setTimeout(() => setSuccess(""), 3000);
-        } else {
-          setError("Failed to delete order");
-        }
-      } catch (err) {
-        setError("An error occurred while deleting the order");
-        console.error(err);
-      }
-    }
-  };
-
-  // Reset functions for each metric using offset approach
-  // When reset is clicked, we store the current value as an offset
-  // Displayed value = actual value - offset (so it shows 0 initially)
-  const handleResetProducts = () => {
-    const currentValue = products.length;
-    setOffsetProducts(currentValue);
-    localStorage.setItem('offsetProducts', currentValue.toString());
-    setSuccess(`Products count reset to 0! (offset: ${currentValue})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  const handleResetOrders = () => {
-    const currentValue = orders.length;
-    setOffsetOrders(currentValue);
-    localStorage.setItem('offsetOrders', currentValue.toString());
-    setSuccess(`Orders count reset to 0! (offset: ${currentValue})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  const handleResetRevenue = () => {
-    const currentValue = totalRevenue;
-    setOffsetRevenue(currentValue);
-    localStorage.setItem('offsetRevenue', currentValue.toString());
-    setSuccess(`Revenue reset to ₹0! (offset: ₹${currentValue.toLocaleString('en-IN')})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  const handleResetGrossRevenue = () => {
-    const currentValue = totalRevenueIncludingCancelled;
-    setOffsetGrossRevenue(currentValue);
-    localStorage.setItem('offsetGrossRevenue', currentValue.toString());
-    setSuccess(`Gross revenue reset to ₹0! (offset: ₹${currentValue.toLocaleString('en-IN')})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  const handleResetPendingOrders = () => {
-    const currentValue = orderCounts.pending;
-    setOffsetPendingOrders(currentValue);
-    localStorage.setItem('offsetPendingOrders', currentValue.toString());
-    setSuccess(`Pending orders reset to 0! (offset: ${currentValue})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  const handleResetBillingReady = () => {
-    const currentValue = products.filter(p => p.inStock).length;
-    setOffsetBillingReady(currentValue);
-    localStorage.setItem('offsetBillingReady', currentValue.toString());
-    setSuccess(`Billing ready count reset to 0! (offset: ${currentValue})`);
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  // Function to restore original values from GitHub data
-  const handleRestoreAll = () => {
-    // Clear all offsets
-    setOffsetProducts(0);
-    setOffsetOrders(0);
-    setOffsetRevenue(0);
-    setOffsetGrossRevenue(0);
-    setOffsetPendingOrders(0);
-    setOffsetBillingReady(0);
-    
-    // Clear localStorage
-    localStorage.removeItem('offsetProducts');
-    localStorage.removeItem('offsetOrders');
-    localStorage.removeItem('offsetRevenue');
-    localStorage.removeItem('offsetGrossRevenue');
-    localStorage.removeItem('offsetPendingOrders');
-    localStorage.removeItem('offsetBillingReady');
-    
-    setSuccess("All metrics restored to original values from GitHub data!");
-    setTimeout(() => setSuccess(""), 3000);
-  };
-
-  // Bulk upload functions
-  const handleBulkFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setBulkUploadFile(file);
-    setBulkUploadError("");
-    setBulkUploadSuccess("");
-    setParsedProducts([]);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Get the first sheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if (jsonData.length < 2) {
-          setBulkUploadError("Excel file must have at least a header row and one data row.");
-          return;
-        }
-
-        // Get headers (first row)
-        const headers = jsonData[0] as string[];
-        const requiredColumns = ['Name', 'Price', 'Category', 'Description', 'InStock', 'ImageURL'];
-        
-        // Check if all required columns exist
-        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
-        if (missingColumns.length > 0) {
-          setBulkUploadError(`Missing required columns: ${missingColumns.join(', ')}`);
-          return;
-        }
-
-        // Map column indices
-        const columnMap = {
-          name: headers.indexOf('Name'),
-          price: headers.indexOf('Price'),
-          category: headers.indexOf('Category'),
-          description: headers.indexOf('Description'),
-          inStock: headers.indexOf('InStock'),
-          image: headers.indexOf('ImageURL')
-        };
-
-        // Parse data rows
-        const parsedData: AdminProduct[] = [];
-        for (let i = 1; i < jsonData.length; i++) {
-          const row = jsonData[i] as any[];
-          if (!row || row.length === 0) continue;
-
-          const product: AdminProduct = {
-            id: `bulk_${Date.now()}_${i}`, // Generate unique ID
-            name: String(row[columnMap.name] || '').trim(),
-            price: parseFloat(String(row[columnMap.price] || 0)) || 0,
-            category: String(row[columnMap.category] || '').trim(),
-            description: String(row[columnMap.description] || '').trim(),
-            inStock: String(row[columnMap.inStock] || '').toUpperCase() === 'TRUE',
-            image: String(row[columnMap.image] || '').trim() || '/images/placeholder.svg'
-          };
-
-          // Validate required fields
-          if (!product.name || !product.category || product.price <= 0) {
-            setBulkUploadError(`Row ${i + 1}: Missing required fields (Name, Category, or invalid Price)`);
-            return;
-          }
-
-          parsedData.push(product);
-        }
-
-        if (parsedData.length === 0) {
-          setBulkUploadError("No valid products found in the Excel file.");
-          return;
-        }
-
-        setParsedProducts(parsedData);
-        setBulkUploadSuccess(`Successfully parsed ${parsedData.length} products from Excel file.`);
-      } catch (error) {
-        setBulkUploadError(`Error parsing Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    };
-
-    reader.readAsArrayBuffer(file);
-  };
-
-  const handleBulkUpload = async () => {
-    if (parsedProducts.length === 0) {
-      setBulkUploadError("No products to upload.");
-      return;
-    }
-
-    // Prevent concurrent uploads
-    if (isUploading) {
-      toast({
-        title: "⏳ Upload in Progress",
-        description: "Please wait for the current upload to complete before trying again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
-    // Prevent rapid successive uploads (debounce)
-    const now = Date.now();
-    if (now - lastUploadTime < 3000) { // 3 second debounce for bulk uploads
-      toast({
-        title: "⏳ Please Wait",
-        description: "Please wait 3 seconds between bulk uploads to avoid conflicts.",
-        variant: "destructive",
-        duration: 2000,
-      });
-      return;
-    }
-
-    setIsBulkUploading(true);
-    setIsUploading(true);
-    setLastUploadTime(now);
-    setBulkUploadError("");
-    setBulkUploadSuccess("");
-    setBulkUploadProgress(0);
-
-    try {
-      // Show initial progress
-      setBulkUploadProgress(10);
-
-      // Show processing toast notification
-      toast({
-        title: "🔄 Processing Images...",
-        description: `Processing and compressing images for ${parsedProducts.length} products...`,
-        duration: 3000,
-      });
-
-      // Convert AdminProduct to Product format (remove imageUrl, use image)
-      const productsToUpload = parsedProducts.map(product => ({
-        name: product.name,
-        price: product.price,
-        category: product.category,
-        description: product.description,
-        inStock: product.inStock,
-        image: product.image || '/images/placeholder.svg'
-      }));
-
-      setBulkUploadProgress(30);
-
-      // Add all products in a single API call
-      const success = await bulkAddProducts(productsToUpload);
-      
-      setBulkUploadProgress(90);
-
-      if (success) {
-        setBulkUploadProgress(100);
-        setBulkUploadSuccess(`✅ Successfully uploaded ${parsedProducts.length} products in a single operation!`);
-        
-        // Show success toast notification
-        toast({
-          title: "🎉 Bulk Upload Completed!",
-          description: `Successfully uploaded ${parsedProducts.length} products with images processed and compressed.`,
-          duration: 5000,
-        });
-        
-        console.log(`Successfully uploaded ${parsedProducts.length} products in a single operation!`);
-
-        setParsedProducts([]);
-        setBulkUploadFile(null);
-        
-        // Reset file input
-        const fileInput = document.getElementById('bulk-upload-file') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
-      } else {
-        setBulkUploadError("❌ Failed to upload products. Please try again.");
-        
-        // Show error toast notification
-        toast({
-          title: "❌ Bulk Upload Failed",
-          description: "Failed to upload products. Please try again.",
-          variant: "destructive",
-          duration: 5000,
-        });
-        
-        console.log('Failed to upload products. Please try again.');
-      }
-    } catch (error) {
-      setBulkUploadError(`Error uploading products: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      // Show error toast notification
-      toast({
-        title: "❌ Bulk Upload Error",
-        description: error instanceof Error ? error.message : 'Unknown error occurred during upload',
-        variant: "destructive",
-        duration: 5000,
-      });
-      
-      console.log(`Error uploading products: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsBulkUploading(false);
-      setIsUploading(false);
-      setTimeout(() => setBulkUploadProgress(0), 2000);
-    }
-  };
-
-  const handleClearBulkUpload = () => {
-    setBulkUploadFile(null);
-    setParsedProducts([]);
-    setBulkUploadError("");
-    setBulkUploadSuccess("");
-    
-    // Reset file input
-    const fileInput = document.getElementById('bulk-upload-file') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  };
 
 
 
@@ -1203,29 +400,26 @@ const AdminDashboard = () => {
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-6">
             {/* Add Product Button */}
-            <div className="space-y-4">
+            <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">Product Management</h2>
-              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                <Button 
-                  onClick={async () => {
-                    const success = await refreshProducts();
-                    if (success) {
-                      setSuccess('Products refreshed successfully!');
-                      setTimeout(() => setSuccess(''), 3000);
-                    } else {
-                      setError('Failed to refresh products');
-                    }
-                  }}
+              <div className="flex gap-2">
+                {/* <Button 
+                  onClick={handleCleanProducts} 
                   variant="outline" 
-                  className="text-blue-600 border-blue-600 hover:bg-blue-50 w-full sm:w-auto"
+                  className="text-orange-600 border-orange-600 hover:bg-orange-50"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
-                  Refresh
+                  Clean Images
                 </Button>
                 <Button 
-                  onClick={openAddDialog} 
-                  className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+                  onClick={handleUploadCleanProducts} 
+                  variant="outline" 
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
                 >
+                  <Package className="h-4 w-4 mr-2" />
+                  Upload Clean Data
+                </Button> */}
+                <Button onClick={openAddDialog} className="bg-primary hover:bg-primary/90">
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Product
                 </Button>
@@ -1287,12 +481,13 @@ const AdminDashboard = () => {
                         >
                           {isBulkUploading ? (
                             <>
-                              Uploading...
+                              <LoadingSpinner size="sm" />
+                              <span className="ml-2">Uploading...</span>
                             </>
                           ) : (
                             <>
                               <Save className="h-4 w-4 mr-2" />
-                              Upload All Products
+                              Upload to GitHub
                             </>
                           )}
                         </Button>
@@ -1301,13 +496,11 @@ const AdminDashboard = () => {
 
                     {isBulkUploading && (
                       <div className="space-y-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                            style={{ width: `${bulkUploadProgress}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-sm text-gray-600">Uploading {parsedProducts.length} products in a single operation... {bulkUploadProgress}%</p>
+                        <ProgressBar
+                          progress={bulkUploadProgress}
+                          text="Uploading products..."
+                          showPercentage={true}
+                        />
                       </div>
                     )}
 
@@ -1425,6 +618,129 @@ const AdminDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+
+            {/* Bulk Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Bulk Upload Products
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="bulk-upload">Upload Excel File (.xlsx, .xls)</Label>
+                  <Input
+                    id="bulk-upload"
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleBulkFileUpload}
+                    disabled={isBulkUploading}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-sm text-gray-500">
+                    Excel format: Name, Price, Category, Description, InStock (TRUE/FALSE), ImageURL
+                  </p>
+                </div>
+
+                {/* Error/Success Messages */}
+                {bulkUploadError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{bulkUploadError}</p>
+                  </div>
+                )}
+                {bulkUploadSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-600">{bulkUploadSuccess}</p>
+                  </div>
+                )}
+
+                {/* Preview Table */}
+                {parsedProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-gray-900">Preview ({parsedProducts.length} products)</h4>
+                    <div className="border rounded-md max-h-60 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Name</th>
+                            <th className="px-3 py-2 text-left">Price</th>
+                            <th className="px-3 py-2 text-left">Category</th>
+                            <th className="px-3 py-2 text-left">In Stock</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {parsedProducts.slice(0, 10).map((product, index) => (
+                            <tr key={index} className="border-t">
+                              <td className="px-3 py-2">{product.name}</td>
+                              <td className="px-3 py-2">₹{product.price}</td>
+                              <td className="px-3 py-2">{product.category}</td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  product.inStock 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {product.inStock ? 'Yes' : 'No'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {parsedProducts.length > 10 && (
+                            <tr className="border-t bg-gray-50">
+                              <td colSpan={4} className="px-3 py-2 text-center text-gray-500">
+                                ... and {parsedProducts.length - 10} more products
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Progress Bar */}
+                {isBulkUploading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Uploading products...</span>
+                      <span>{bulkUploadProgress}%</span>
+                    </div>
+                    <ProgressBar progress={bulkUploadProgress} />
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleBulkUpload}
+                    disabled={parsedProducts.length === 0 || isBulkUploading}
+                    className="flex items-center gap-2"
+                  >
+                    {isBulkUploading ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Upload to GitHub
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleClearBulkUpload}
+                    variant="outline"
+                    disabled={isBulkUploading}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1795,12 +1111,9 @@ const AdminDashboard = () => {
 
         {/* Add Product Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Product</DialogTitle>
-              <DialogDescription>
-                Fill in the details below to add a new product to your inventory.
-              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1895,8 +1208,8 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Product Image</Label>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <Label>Product Image (300x300)</Label>
+                <div className="flex items-center space-x-4">
                   <Input
                     type="file"
                     accept="image/*"
@@ -1906,17 +1219,13 @@ const AdminDashboard = () => {
                         handleImageUpload(file);
                       }
                     }}
-                    className="cursor-pointer w-full sm:w-auto"
                   />
                   {imagePreview && (
-                    <div className="relative flex-shrink-0">
+                    <div className="relative">
                       <img 
                         src={imagePreview} 
                         alt="Preview" 
-                        className="w-20 h-20 object-cover rounded-md border-2 border-gray-200"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                        }}
+                        className="w-20 h-20 object-cover rounded-md"
                       />
                       <Button
                         type="button"
@@ -1927,31 +1236,27 @@ const AdminDashboard = () => {
                           setImagePreview("");
                           setFormData(prev => ({ ...prev, imageUrl: "" }));
                         }}
-                        title="Remove image"
                       >
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">
-                  Upload an image (max 10MB). Images will be automatically compressed to 800px width.
-                </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <div className="flex justify-end space-x-2 pt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsAddDialogOpen(false)}
-                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" disabled={isSubmitting}>
+                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
-                      Adding...
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">Adding...</span>
                     </>
                   ) : (
                     <>
@@ -1967,12 +1272,9 @@ const AdminDashboard = () => {
 
         {/* Edit Product Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
-              <DialogDescription>
-                Update the product details below. Changes will be saved to your inventory.
-              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2067,8 +1369,8 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Product Image</Label>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <Label>Product Image (300x300)</Label>
+                <div className="flex items-center space-x-4">
                   <Input
                     type="file"
                     accept="image/*"
@@ -2078,17 +1380,13 @@ const AdminDashboard = () => {
                         handleImageUpload(file);
                       }
                     }}
-                    className="cursor-pointer w-full sm:w-auto"
                   />
                   {imagePreview && (
-                    <div className="relative flex-shrink-0">
+                    <div className="relative">
                       <img 
                         src={imagePreview} 
                         alt="Preview" 
-                        className="w-20 h-20 object-cover rounded-md border-2 border-gray-200"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                        }}
+                        className="w-20 h-20 object-cover rounded-md"
                       />
                       <Button
                         type="button"
@@ -2099,31 +1397,27 @@ const AdminDashboard = () => {
                           setImagePreview("");
                           setFormData(prev => ({ ...prev, imageUrl: "" }));
                         }}
-                        title="Remove image"
                       >
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">
-                  Upload an image (max 10MB). Images will be automatically compressed to 800px width.
-                </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <div className="flex justify-end space-x-2 pt-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsEditDialogOpen(false)}
-                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" disabled={isSubmitting}>
+                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
-                      Updating...
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">Updating...</span>
                     </>
                   ) : (
                     <>

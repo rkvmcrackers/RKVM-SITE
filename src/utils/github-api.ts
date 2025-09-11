@@ -98,7 +98,7 @@ class GitHubAPI {
 
   // Create or update file in GitHub
   async putFile(path: string, content: any, message: string = 'Update data'): Promise<boolean> {
-    const maxRetries = 2; // Reduced from 3 to 2
+    const maxRetries = 5; // Increased retries
     let attempt = 0;
     
     while (attempt < maxRetries) {
@@ -106,7 +106,7 @@ class GitHubAPI {
         attempt++;
         console.log(`Attempt ${attempt}/${maxRetries} to update file: ${path}`);
         
-        // First, try to get the existing file to get its SHA
+        // Always get fresh file data for each attempt
         const existingFile = await this.getFile(path);
         let sha: string | undefined;
 
@@ -137,7 +137,7 @@ class GitHubAPI {
         
         // Add a small delay to avoid race conditions
         if (attempt > 1) {
-          const delay = 1000; // Fixed 1 second delay
+          const delay = 500 + (attempt * 500); // Progressive delay: 1s, 1.5s, 2s
           console.log(`Adding delay: ${delay}ms`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -162,88 +162,195 @@ class GitHubAPI {
           }
         );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('GitHub API response:', response.status, errorText);
-        
-        // Handle 409 conflict (stale SHA) by getting fresh SHA
-        if (response.status === 409) {
-          console.log('SHA conflict detected, getting fresh SHA...');
-          try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const freshFile = await this.getFile(path);
-            if (freshFile && freshFile.sha && freshFile.sha !== sha) {
-              console.log('Fresh SHA obtained:', freshFile.sha);
-              // Update SHA for next attempt
-              sha = freshFile.sha;
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('GitHub API response:', response.status, errorText);
+          
+          // Handle 409 conflict (stale SHA) - just continue to next attempt
+          if (response.status === 409) {
+            console.log('SHA conflict detected, will retry with fresh data...');
+            // Just continue to next iteration - we'll get fresh SHA at the start of next attempt
+            if (attempt < maxRetries) {
+              const waitTime = 1000 + (attempt * 1000); // Progressive delay: 1s, 2s, 3s, 4s
+              console.log(`Waiting ${waitTime}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
             }
-          } catch (shaError) {
-            console.error('Error refreshing SHA:', shaError);
           }
-        }
-        
-        // If it's a 422 error, it might be because the parent directory doesn't exist
-        if (response.status === 422) {
-          console.log('File creation failed, trying to create parent directory...');
-          const parentPath = path.split('/').slice(0, -1).join('/');
-          if (parentPath) {
-            try {
-              const placeholderResponse = await fetch(
-                `${this.baseUrl}/repos/${this.config.owner}/${this.config.repo}/contents/${parentPath}/.gitkeep`,
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Authorization': `token ${this.config.token}`,
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    message: 'Create data directory',
-                    content: btoa(''),
-                    branch: this.config.branch,
-                  }),
+          
+          // If it's a 422 error, it might be because the parent directory doesn't exist
+          if (response.status === 422) {
+            console.log('File creation failed, trying to create parent directory...');
+            const parentPath = path.split('/').slice(0, -1).join('/');
+            if (parentPath) {
+              try {
+                const placeholderResponse = await fetch(
+                  `${this.baseUrl}/repos/${this.config.owner}/${this.config.repo}/contents/${parentPath}/.gitkeep`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Authorization': `token ${this.config.token}`,
+                      'Accept': 'application/vnd.github.v3+json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      message: 'Create data directory',
+                      content: btoa(''),
+                      branch: this.config.branch,
+                    }),
+                  }
+                );
+                
+                if (placeholderResponse.ok) {
+                  console.log('Parent directory created');
+                  await new Promise(resolve => setTimeout(resolve, 500));
                 }
-              );
-              
-              if (placeholderResponse.ok) {
-                console.log('Parent directory created');
-                await new Promise(resolve => setTimeout(resolve, 500));
+              } catch (dirError) {
+                console.log('Could not create parent directory:', dirError);
               }
-            } catch (dirError) {
-              console.log('Could not create parent directory:', dirError);
             }
           }
+          
+          // If this is not the last attempt, wait and continue to next iteration
+          if (attempt < maxRetries) {
+            const waitTime = 1000 + (attempt * 1000); // Progressive delay: 1s, 2s, 3s, 4s
+            console.log(`Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          
+          throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
         }
+
+        return true;
+      } catch (error) {
+        console.error(`Error updating file in GitHub (attempt ${attempt}):`, error);
         
         // If this is not the last attempt, wait and continue to next iteration
         if (attempt < maxRetries) {
-          const waitTime = 2000; // Fixed 2 second delay
+          const waitTime = 1000 + (attempt * 1000); // Progressive delay: 1s, 2s, 3s, 4s
           console.log(`Waiting ${waitTime}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
           continue;
         }
         
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        return false;
       }
-
-      return true;
-    } catch (error) {
-      console.error(`Error updating file in GitHub (attempt ${attempt}):`, error);
-      
-      // If this is not the last attempt, wait and continue to next iteration
-      if (attempt < maxRetries) {
-        const waitTime = 1000;
-        console.log(`Waiting ${waitTime}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue;
-      }
-      
-      return false;
     }
+    
+    return false;
   }
-  
-  return false;
-}
+
+  // Fast upload method with fewer retries for single operations
+  async putFileFast(path: string, content: any, message: string = 'Update data'): Promise<boolean> {
+    const maxRetries = 2; // Only 2 retries for fast uploads
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Fast attempt ${attempt}/${maxRetries} to update file: ${path}`);
+        
+        // Always get fresh file data for each attempt
+        const existingFile = await this.getFile(path);
+        let sha: string | undefined;
+
+        if (existingFile && existingFile.sha) {
+          // Check if content is actually different
+          const existingContent = JSON.stringify(existingFile.content, null, 2);
+          const newContent = JSON.stringify(content, null, 2);
+          
+          if (existingContent === newContent) {
+            console.log('File content is identical, no update needed');
+            return true;
+          }
+          
+          sha = existingFile.sha;
+          console.log(`File exists, using fresh SHA: ${sha}`);
+        } else {
+          console.log('File does not exist, creating new file');
+        }
+
+        // Use Unicode-safe base64 encoding
+        const fileContent = this.unicodeSafeBase64Encode(JSON.stringify(content, null, 2));
+        
+        const requestBody: any = {
+          message: `${message} - ${new Date().toISOString()}`,
+          content: fileContent,
+          branch: this.config.branch,
+        };
+        
+        // Add delay between attempts (except first)
+        if (attempt > 1) {
+          const delay = 2000 + (attempt * 1000); // 2s, 3s
+          console.log(`Adding fast delay: ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Only include SHA if file exists
+        if (sha) {
+          requestBody.sha = sha;
+        }
+        
+        console.log('Fast request body prepared for:', path);
+        
+        const response = await fetch(
+          `${this.baseUrl}/repos/${this.config.owner}/${this.config.repo}/contents/${path}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `token ${this.config.token}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (response.ok) {
+          console.log('Fast file updated successfully on attempt', attempt);
+          return true;
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Fast GitHub API response:', response.status, errorText);
+          
+          // Handle 409 conflict (stale SHA) - just continue to next attempt
+          if (response.status === 409) {
+            console.log('Fast SHA conflict detected, will retry with fresh data...');
+            if (attempt < maxRetries) {
+              continue;
+            }
+          }
+          
+          // If this is not the last attempt, wait and continue to next iteration
+          if (attempt < maxRetries) {
+            const waitTime = 2000 + (attempt * 1000); // 2s, 3s
+            console.log(`Waiting ${waitTime}ms before fast retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          
+          throw new Error(`Fast GitHub API error: ${response.status} - ${errorText}`);
+        }
+
+        return true;
+      } catch (error) {
+        console.error(`Error in fast file update (attempt ${attempt}):`, error);
+        
+        // If this is not the last attempt, wait and continue to next iteration
+        if (attempt < maxRetries) {
+          const waitTime = 2000 + (attempt * 1000); // 2s, 3s
+          console.log(`Waiting ${waitTime}ms before fast retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        
+        return false;
+      }
+    }
+    
+    return false;
+  }
 
   // Check if repository exists and is accessible
   async checkRepositoryAccess(): Promise<{ exists: boolean; error?: string }> {
@@ -324,6 +431,11 @@ export const saveProducts = async (products: any[]) => {
   return await githubAPI.putFile('data/products.json', products, 'Update products');
 };
 
+// Fast upload for single product additions (fewer retries)
+export const saveProductsFast = async (products: any[]) => {
+  return await githubAPI.putFileFast('data/products.json', products, 'Add product');
+};
+
 export const getProducts = async () => {
   const result = await githubAPI.getFile('data/products.json');
   return result ? result.content : [];
@@ -364,3 +476,4 @@ export const testGitHubConnection = async () => {
 };
 
 export default GitHubAPI;
+
