@@ -41,7 +41,7 @@ const BillingComponent: React.FC<BillingComponentProps> = ({ products, categorie
   const companyDetails = {
     name: 'RKVM CRACKERS',
     phone: '9750153358',
-    email: 'rkvmpyrotech2021@gmail.com',
+    email: 'rkvmcrackers@gmail.com',
     address: 'RKVM Crackers, India'
   };
 

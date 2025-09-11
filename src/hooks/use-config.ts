@@ -12,7 +12,7 @@ export const useConfig = () => {
   const [config, setConfig] = useState<Config>({
     companyName: 'RKVM Crackers',
     contactPhone: '9750153358',
-    contactEmail: 'rkvmpyrotech2021@gmail.com',
+    contactEmail: 'rkvmcrackers@gmail.com',
     address: 'RKVM Crackers, India'
   });
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export const useConfig = () => {
         setConfig({
           companyName: 'RKVM Crackers',
           contactPhone: '9750153358',
-          contactEmail: 'rkvmpyrotech2021@gmail.com',
+          contactEmail: 'rkvmcrackers@gmail.com',
           address: 'RKVM Crackers, India'
         });
         }
@@ -47,7 +47,7 @@ export const useConfig = () => {
         setConfig({
           companyName: 'RKVM Crackers',
           contactPhone: '9750153358',
-          contactEmail: 'rkvmpyrotech2021@gmail.com',
+          contactEmail: 'rkvmcrackers@gmail.com',
           address: 'RKVM Crackers, India'
         });
       } finally {
@@ -80,7 +80,7 @@ export const useConfig = () => {
       const defaultConfig = {
         companyName: 'RKVM Crackers',
         contactPhone: '9750153358',
-        contactEmail: 'rkvmpyrotech2021@gmail.com',
+        contactEmail: 'rkvmcrackers@gmail.com',
         address: 'RKVM Crackers, India'
       };
       await updateConfig(defaultConfig);

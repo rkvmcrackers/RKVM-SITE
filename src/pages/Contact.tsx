@@ -14,7 +14,7 @@ const Contact = () => {
   const contactDetails = {
     phone: "9750153358",
     customerSupport: "7010918595",
-    email: "rkvmpyrotech2021@gmail.com",
+    email: "rkvmcrackers@gmail.com",
     companyName: "RKVM Crackers"
   };
   

@@ -91,7 +91,7 @@ const GitHubTestPage = () => {
       const testConfig = {
         companyName: 'RKVM Crackers Test',
         contactPhone: '+91 98765 43210',
-        contactEmail: 'test@rkvmcrackers.com',
+        contactEmail: 'rkvmcrackers@gmail.com',
         address: 'Test Address, Mumbai'
       };
       const result = await saveConfig(testConfig);
