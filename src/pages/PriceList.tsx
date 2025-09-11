@@ -4,11 +4,15 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
-import { Search, Download, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { Search, Download, Sparkles, ZoomIn } from "lucide-react";
 
 const PriceList = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const { products, categories, loading, error } = useProducts();
 
   const filteredProducts = products.filter((product) => {
@@ -19,6 +23,15 @@ const PriceList = () => {
       product.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  // Handle image click for popup
+  const handleImageClick = (imageUrl: string, productName: string) => {
+    if (imageUrl && imageUrl !== "https://via.placeholder.com/300x200?text=No+Image") {
+      setSelectedImage(imageUrl);
+      setSelectedImageAlt(productName);
+      setIsImageDialogOpen(true);
+    }
+  };
 
   const downloadPriceList = () => {
     let priceListText = `
@@ -171,11 +184,21 @@ Thank you for choosing RKVM Crackers! 🎆
               >
                 <div className="relative">
                   {/* ✅ Show Admin Uploaded Image OR fallback placeholder */}
-                  <img
-                    src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
-                    alt={product.name}
-                    className="w-full h-40 object-cover rounded-t-2xl"
-                  />
+                  <div 
+                    className="relative cursor-pointer group"
+                    onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
+                  >
+                    <img
+                      src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
+                      alt={product.name}
+                      className="w-full h-40 object-cover rounded-t-2xl transition-opacity duration-200 group-hover:opacity-80"
+                    />
+                    {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-t-2xl flex items-center justify-center transition-all duration-200">
+                        <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" />
+                      </div>
+                    )}
+                  </div>
                   {!product.inStock && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-2xl">
                       <span className="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">
@@ -266,6 +289,26 @@ Thank you for choosing RKVM Crackers! 🎆
             </div>
           </CardContent>
         </Card>
+
+        {/* Image Popup Dialog */}
+        <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle className="text-lg font-semibold">
+                {selectedImageAlt}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-6 pt-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedImage}
+                  alt={selectedImageAlt}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

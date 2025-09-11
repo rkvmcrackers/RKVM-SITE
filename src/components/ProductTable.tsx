@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Product } from "../types/product";
-import { Plus, Minus, ShoppingCart } from "lucide-react";
+import { Plus, Minus, ShoppingCart, ZoomIn } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useToast } from "../hooks/use-toast";
 
 interface CartItem extends Product {
@@ -19,6 +20,9 @@ interface ProductTableProps {
 const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: ProductTableProps) => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>(cartItems);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const { toast } = useToast();
 
   const filteredProducts =
@@ -69,6 +73,15 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
+  // Handle image click for popup
+  const handleImageClick = (imageUrl: string, productName: string) => {
+    if (imageUrl && imageUrl !== "/placeholder.png") {
+      setSelectedImage(imageUrl);
+      setSelectedImageAlt(productName);
+      setIsImageDialogOpen(true);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Cart Summary */}
@@ -117,11 +130,21 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
           return (
             <Card key={product.id} className={`card-glow flex flex-col ${!product.inStock ? 'opacity-75' : ''}`}>
               <div className="relative">
-                <img
-                  src={product.image || "/placeholder.png"} // 👈 show admin-uploaded image
-                  alt={product.name}
-                  className="w-full h-40 object-cover rounded-t-lg"
-                />
+                <div 
+                  className="relative cursor-pointer group"
+                  onClick={() => handleImageClick(product.image || "/placeholder.png", product.name)}
+                >
+                  <img
+                    src={product.image || "/placeholder.png"} // 👈 show admin-uploaded image
+                    alt={product.name}
+                    className="w-full h-40 object-cover rounded-t-lg transition-opacity duration-200 group-hover:opacity-80"
+                  />
+                  {product.image && product.image !== "/placeholder.png" && (
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-t-lg flex items-center justify-center transition-all duration-200">
+                      <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" />
+                    </div>
+                  )}
+                </div>
                 {!product.inStock && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-t-lg">
                     <span className="text-white font-bold text-lg bg-red-600 px-3 py-1 rounded">
@@ -193,6 +216,26 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
           );
         })}
       </div>
+
+      {/* Image Popup Dialog */}
+      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-lg font-semibold">
+              {selectedImageAlt}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 pt-4">
+            <div className="flex justify-center">
+              <img
+                src={selectedImage}
+                alt={selectedImageAlt}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

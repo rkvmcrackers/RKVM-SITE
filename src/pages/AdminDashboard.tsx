@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
   Save,
   X,
+  ZoomIn,
   Megaphone,
   RotateCcw,
   ShoppingCart,
@@ -68,6 +69,9 @@ const AdminDashboard = () => {
   });
   const [imagePreview, setImagePreview] = useState<string>("");
   const [error, setError] = useState("");
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>("");
+  const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const [success, setSuccess] = useState("");
   const [newHighlight, setNewHighlight] = useState("");
   const [editingHighlightIndex, setEditingHighlightIndex] = useState<number | null>(null);
@@ -252,6 +256,15 @@ const AdminDashboard = () => {
         
         console.log('Using placeholder image. Product will still be saved.');
       }
+    }
+  };
+
+  // Handle image click for popup
+  const handleImageClick = (imageUrl: string, productName: string) => {
+    if (imageUrl && imageUrl !== "/images/placeholder.svg") {
+      setSelectedImage(imageUrl);
+      setSelectedImageAlt(productName);
+      setIsImageDialogOpen(true);
     }
   };
 
@@ -1334,14 +1347,24 @@ const AdminDashboard = () => {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <img
-                                  src={product.image}
-                                  alt={product.name}
-                                  className="w-8 h-8 object-cover rounded"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                                  }}
-                                />
+                                <div 
+                                  className="relative cursor-pointer group"
+                                  onClick={() => handleImageClick(product.image, product.name)}
+                                >
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-8 h-8 object-cover rounded transition-opacity duration-200 group-hover:opacity-80"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/images/placeholder.svg';
+                                    }}
+                                  />
+                                  {product.image && product.image !== '/images/placeholder.svg' && (
+                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded flex items-center justify-center transition-all duration-200">
+                                      <ZoomIn className="h-2 w-2 text-white opacity-0 group-hover:opacity-100" />
+                                    </div>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1378,14 +1401,24 @@ const AdminDashboard = () => {
                       products.map((product) => (
                         <TableRow key={product.id} className="transition-all duration-200 hover:bg-gray-50">
                           <TableCell>
-                            <img 
-                              src={product.image || "/images/placeholder.svg"} 
-                              alt={product.name}
-                              className="w-16 h-16 object-cover rounded-md"
-                              onError={(e) => {
-                                e.currentTarget.src = "/images/placeholder.svg";
-                              }}
-                            />
+                            <div 
+                              className="relative cursor-pointer group"
+                              onClick={() => handleImageClick(product.image || "/images/placeholder.svg", product.name)}
+                            >
+                              <img 
+                                src={product.image || "/images/placeholder.svg"} 
+                                alt={product.name}
+                                className="w-16 h-16 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/images/placeholder.svg";
+                                }}
+                              />
+                              {product.image && product.image !== "/images/placeholder.svg" && (
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-md flex items-center justify-center transition-all duration-200">
+                                  <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div>
@@ -2134,6 +2167,26 @@ const AdminDashboard = () => {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Popup Dialog */}
+        <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+            <DialogHeader className="p-6 pb-0">
+              <DialogTitle className="text-lg font-semibold">
+                {selectedImageAlt}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-6 pt-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedImage}
+                  alt={selectedImageAlt}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                />
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
