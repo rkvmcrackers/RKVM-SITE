@@ -50,9 +50,19 @@ export const useHighlights = () => {
   const updateHighlights = async (newHighlights: string[]) => {
     setHighlights(newHighlights);
     try {
-      await saveHighlights(newHighlights);
+      const success = await saveHighlights(newHighlights);
+      if (!success) {
+        setError('Failed to save highlights. Please try again.');
+        // Revert the local state if save failed
+        setHighlights(highlights);
+      } else {
+        setError(null);
+      }
     } catch (err) {
       console.error('Error saving highlights to GitHub:', err);
+      setError('Failed to save highlights. Please try again.');
+      // Revert the local state if save failed
+      setHighlights(highlights);
     }
   };
 

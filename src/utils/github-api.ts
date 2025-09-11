@@ -121,7 +121,7 @@ class GitHubAPI {
           }
           
           sha = existingFile.sha;
-          console.log(`File exists, using SHA: ${sha}`);
+          console.log(`File exists, using fresh SHA: ${sha}`);
         } else {
           console.log('File does not exist, creating new file');
         }
@@ -137,8 +137,10 @@ class GitHubAPI {
         
         // Add a small delay to avoid race conditions
         if (attempt > 1) {
-          const delay = 500 + (attempt * 500); // Progressive delay: 1s, 1.5s, 2s
-          console.log(`Adding delay: ${delay}ms`);
+          const baseDelay = 500 + (attempt * 500); // Progressive delay: 1s, 1.5s, 2s
+          const randomDelay = Math.random() * 1000; // Add 0-1s random delay
+          const delay = baseDelay + randomDelay;
+          console.log(`Adding delay: ${Math.round(delay)}ms`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
 
@@ -171,10 +173,13 @@ class GitHubAPI {
             console.log('SHA conflict detected, will retry with fresh data...');
             // Just continue to next iteration - we'll get fresh SHA at the start of next attempt
             if (attempt < maxRetries) {
-              const waitTime = 1000 + (attempt * 1000); // Progressive delay: 1s, 2s, 3s, 4s
-              console.log(`Waiting ${waitTime}ms before retry...`);
+              const waitTime = 1000 + (attempt * 1000) + Math.random() * 1000; // Progressive delay with randomness
+              console.log(`Waiting ${Math.round(waitTime)}ms before retry...`);
               await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
+            } else {
+              console.error('Max retries reached for SHA conflict');
+              return false;
             }
           }
           

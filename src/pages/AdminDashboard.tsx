@@ -1377,17 +1377,17 @@ const AdminDashboard = () => {
             </Card>
 
             {/* Products Table */}
-            <Card>
+            <Card className="-mx-4 sm:-mx-6 lg:-mx-8">
               <CardContent className="p-0">
-                <Table>
+                <Table className="w-full">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Image</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                    <TableRow className="border-b">
+                      <TableHead className="px-3 py-3 w-20">Image</TableHead>
+                      <TableHead className="px-3 py-3">Name</TableHead>
+                      <TableHead className="px-3 py-3 w-24">Actions</TableHead>
+                      <TableHead className="px-3 py-3 w-32">Category</TableHead>
+                      <TableHead className="px-3 py-3 w-20">Price</TableHead>
+                      <TableHead className="px-3 py-3 w-24">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1400,7 +1400,7 @@ const AdminDashboard = () => {
                     ) : (
                       products.map((product) => (
                         <TableRow key={product.id} className="transition-all duration-200 hover:bg-gray-50">
-                          <TableCell>
+                          <TableCell className="px-3 py-3 w-20">
                             <div 
                               className="relative cursor-pointer group"
                               onClick={() => handleImageClick(product.image || "/images/placeholder.svg", product.name)}
@@ -1408,50 +1408,52 @@ const AdminDashboard = () => {
                               <img 
                                 src={product.image || "/images/placeholder.svg"} 
                                 alt={product.name}
-                                className="w-16 h-16 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
+                                className="w-12 h-12 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
                                 onError={(e) => {
                                   e.currentTarget.src = "/images/placeholder.svg";
                                 }}
                               />
                               {product.image && product.image !== "/images/placeholder.svg" && (
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-md flex items-center justify-center transition-all duration-200">
-                                  <ZoomIn className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                                  <ZoomIn className="h-3 w-3 text-white opacity-0 group-hover:opacity-100" />
                                 </div>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-3 py-3">
                             <div>
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-gray-500">{product.description}</div>
+                              <div className="font-medium text-sm truncate">{product.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{product.description}</div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{product.category}</Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">₹{product.price}</TableCell>
-                          <TableCell>
-                            <Badge variant={product.inStock ? "default" : "secondary"}>
-                              {product.inStock ? "In Stock" : "Out of Stock"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
+                          <TableCell className="px-3 py-3 w-24">
+                            <div className="flex space-x-1">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => openEditDialog(product as AdminProduct)}
+                                className="h-8 w-8 p-0"
                               >
-                                <Edit className="h-4 w-4" />
+                                <Edit className="h-3 w-3" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
                                 onClick={() => handleDeleteProduct(product.id)}
+                                className="h-8 w-8 p-0"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3 w-3" />
                               </Button>
                             </div>
+                          </TableCell>
+                          <TableCell className="px-3 py-3 w-32">
+                            <Badge variant="secondary" className="text-xs">{product.category}</Badge>
+                          </TableCell>
+                          <TableCell className="px-3 py-3 font-medium w-20">₹{product.price}</TableCell>
+                          <TableCell className="px-3 py-3 w-24">
+                            <Badge variant={product.inStock ? "default" : "secondary"} className="text-xs">
+                              {product.inStock ? "In Stock" : "Out of Stock"}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1518,11 +1520,11 @@ const AdminDashboard = () => {
                       <TableRow>
                         <TableHead>Order ID</TableHead>
                         <TableHead>Customer</TableHead>
+                        <TableHead>Actions</TableHead>
                         <TableHead>Items</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1544,6 +1546,15 @@ const AdminDashboard = () => {
                                   <div className="text-sm text-gray-500">{order.customerEmail}</div>
                                 )}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteOrder(order.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                             <TableCell>
                               <div className="text-sm">
@@ -1581,15 +1592,6 @@ const AdminDashboard = () => {
                                   <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
                               </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteOrder(order.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
