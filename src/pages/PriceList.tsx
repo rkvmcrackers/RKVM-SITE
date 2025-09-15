@@ -7,9 +7,8 @@ import { Input } from "../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Search, Download, Sparkles, ZoomIn, Filter, SortAsc, SortDesc } from "lucide-react";
-import InstantLoadingImage from "../components/InstantLoadingImage";
-import { SimpleImageProxy } from "../utils/simple-image-proxy";
-import { aggressivePreloader } from "../utils/aggressive-preloader";
+import PersistentImage from "../components/PersistentImage";
+import { usePersistentImageCache } from "../hooks/usePersistentImageCache";
 
 const PriceList = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -20,23 +19,17 @@ const PriceList = () => {
   const [sortField, setSortField] = useState<"name" | "price" | "category">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { products, categories, loading, error } = useProducts();
+  const { getCacheStats, cachedImagesCount } = usePersistentImageCache();
   
   // Ref for scrolling to products section
   const productsSectionRef = useRef<HTMLDivElement>(null);
 
-  // Process image URL through proxy if needed
-  const processImageUrl = (imageUrl: string): string => {
-    if (!imageUrl || imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
-      return imageUrl; // Don't process relative URLs or data URLs
-    }
-    return SimpleImageProxy.convertToProxyUrl(imageUrl);
-  };
+  // Images will be cached persistently, no URL processing needed
 
-  // Aggressively preload all images when products load
+  // Images are now cached persistently, no need for local preloading
   useEffect(() => {
     if (products.length > 0) {
-      console.log(`🚀 PriceList: Starting aggressive preload of ${products.length} images...`);
-      aggressivePreloader.preloadAllImages(products);
+      console.log(`📊 PriceList: ${products.length} products loaded, images should be cached persistently`);
     }
   }, [products]);
 
@@ -156,6 +149,16 @@ const PriceList = () => {
               <a href="tel:9750153358">Call for Bulk Orders</a>
             </Button>
           </div>
+          
+          {/* Cache Status Indicator */}
+          {cachedImagesCount > 0 && (
+            <div className="mt-4 text-sm text-muted-foreground">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {cachedImagesCount} images cached for instant loading
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -317,12 +320,12 @@ const PriceList = () => {
                                 className="relative cursor-pointer group inline-block"
                                 onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                               >
-                                <InstantLoadingImage
-                                  src={processImageUrl(product.image || "/placeholder.svg")}
+                                <PersistentImage
+                                  src={product.image || "/placeholder.svg"}
                                   alt={product.name}
                                   className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
                                   fallbackSrc="/placeholder.svg"
-                                  priority={index < 10} // Prioritize first 10 images
+                                  loading={index < 10 ? 'eager' : 'lazy'}
                                 />
                                 {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
@@ -385,12 +388,12 @@ const PriceList = () => {
                         className="relative cursor-pointer group w-full h-full"
                         onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                       >
-                        <InstantLoadingImage
-                          src={processImageUrl(product.image || "/placeholder.svg")}
+                        <PersistentImage
+                          src={product.image || "/placeholder.svg"}
                           alt={product.name}
                           className="w-full h-full object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
                           fallbackSrc="/placeholder.svg"
-                          priority={false} // Mobile images don't need priority
+                          loading="lazy"
                         />
                         {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">

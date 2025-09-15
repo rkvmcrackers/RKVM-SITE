@@ -9,7 +9,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Sparkles, ArrowLeft, ShoppingCart, AlertCircle, Shield } from "lucide-react";
 import { Product } from "../types/product";
 import { useProducts } from "../hooks/use-products";
-import { aggressivePreloader } from "../utils/aggressive-preloader";
+// Images are now preloaded globally
 import { scrollToTop } from "../utils/scroll-utils";
 
 interface CartItem extends Product {
@@ -34,11 +34,10 @@ const QuickPurchase = () => {
     }
   }, []);
 
-  // Aggressively preload all images when products load
+  // Images are now preloaded globally, no need for local preloading
   useEffect(() => {
     if (products.length > 0) {
-      console.log(`🚀 QuickPurchase: Starting aggressive preload of ${products.length} images...`);
-      aggressivePreloader.preloadAllImages(products);
+      console.log(`📊 QuickPurchase: ${products.length} products loaded, images should be preloaded globally`);
     }
   }, [products]);
 

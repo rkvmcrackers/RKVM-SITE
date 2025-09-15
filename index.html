@@ -26,8 +26,18 @@
     <link rel="preload" href="/placeholder.svg" as="image" />
     <link rel="preconnect" href="https://images.weserv.nl" />
     <link rel="preconnect" href="https://corsproxy.io" />
-    <link rel="dns-prefetch" href="https://api.allorigins.win" />
+    <link rel="preconnect" href="https://api.allorigins.win" />
     <link rel="dns-prefetch" href="https://cors-anywhere.herokuapp.com" />
+    <link rel="dns-prefetch" href="https://thingproxy.freeboard.io" />
+    
+    <!-- Production-specific optimizations -->
+    <meta http-equiv="Cache-Control" content="public, max-age=31536000" />
+    <meta http-equiv="Expires" content="31536000" />
+    <link rel="dns-prefetch" href="//drive.google.com" />
+    <link rel="dns-prefetch" href="//lh3.googleusercontent.com" />
+    <link rel="dns-prefetch" href="//lh4.googleusercontent.com" />
+    <link rel="dns-prefetch" href="//lh5.googleusercontent.com" />
+    <link rel="dns-prefetch" href="//lh6.googleusercontent.com" />
     
     <!-- Critical CSS -->
     <style>
@@ -79,5 +89,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('✅ Service Worker registered:', registration);
+            })
+            .catch((error) => {
+              console.warn('❌ Service Worker registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

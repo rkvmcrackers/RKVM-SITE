@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useToast } from "../hooks/use-toast";
 import { SimpleImageProxy } from "../utils/simple-image-proxy";
-import InstantLoadingImage from "./InstantLoadingImage";
-import { aggressivePreloader } from "../utils/aggressive-preloader";
+import FastImage from "./FastImage";
 
 interface CartItem extends Product {
   quantity: number;
@@ -37,11 +36,10 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
     return SimpleImageProxy.convertToProxyUrl(imageUrl);
   };
 
-  // Aggressively preload all images when products load
+  // Images are now cached persistently, no need for local preloading
   useEffect(() => {
     if (products.length > 0) {
-      console.log(`🚀 ProductTable: Starting aggressive preload of ${products.length} images...`);
-      aggressivePreloader.preloadAllImages(products);
+      console.log(`📊 ProductTable: ${products.length} products loaded, images should be cached persistently`);
     }
   }, [products]);
 
@@ -169,12 +167,13 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
                   className="relative cursor-pointer group"
                   onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
                 >
-                  <InstantLoadingImage
-                    src={processImageUrl(product.image || "/placeholder.svg")}
+                  <FastImage
+                    src={product.image || "/placeholder.svg"}
                     alt={product.name}
                     className="w-full h-40 object-cover rounded-t-lg transition-opacity duration-200 group-hover:opacity-80"
                     fallbackSrc="/placeholder.svg"
                     priority={index < 6} // Prioritize first 6 images
+                    loading={index < 6 ? 'eager' : 'lazy'}
                   />
                   {product.image && product.image !== "/placeholder.svg" && (
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-t-lg flex items-center justify-center transition-all duration-200">

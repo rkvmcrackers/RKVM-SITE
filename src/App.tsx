@@ -16,39 +16,62 @@ import AdminDashboard from "./pages/AdminDashboard";
 import GitHubTestPage from "./pages/GitHubTestPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTopButton from "./components/ScrollToTopButton";
+import PreloadStatus from "./components/PreloadStatus";
 import { useScrollToTop } from "./hooks/use-scroll-to-top";
-import { aggressivePreloader } from "./utils/aggressive-preloader";
+import { ImageCacheProvider } from "./components/ImageCacheProvider";
+import { ImageCacheProvider as PersistentImageCacheProvider } from "./contexts/ImageCacheContext";
+import { useProducts } from "./hooks/use-products";
 
 const queryClient = new QueryClient();
 
 // Main App component with scroll to top functionality
 const AppContent = () => {
   useScrollToTop(); // This will scroll to top on every route change
+  const { products } = useProducts(); // Get products for global preloading
 
-  // Preload critical images immediately when app starts
+  // Extract image URLs for caching
+  const imageUrls = React.useMemo(() => {
+    return products
+      .map(product => product.image)
+      .filter(Boolean);
+  }, [products]);
+
+  // Preload critical images immediately
   React.useEffect(() => {
-    aggressivePreloader.preloadCriticalImages();
+    const criticalImages = ['/placeholder.svg'];
+    criticalImages.forEach(url => {
+      fetch(url, { cache: 'force-cache' }).catch(() => {});
+    });
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/price-list" element={<PriceList />} />
-          <Route path="/quick-purchase" element={<QuickPurchase />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/github-test" element={<GitHubTestPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-      <Footer />
-      <LegalPopup />
-      <ScrollToTopButton />
-    </div>
+    <ImageCacheProvider
+      imageUrls={imageUrls}
+      enableBackgroundSync={true}
+      syncInterval={30000} // 30 seconds
+    >
+      <PersistentImageCacheProvider>
+        <div className="min-h-screen flex flex-col">
+          <Navbar />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/price-list" element={<PriceList />} />
+              <Route path="/quick-purchase" element={<QuickPurchase />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/github-test" element={<GitHubTestPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <Footer />
+          <LegalPopup />
+          <ScrollToTopButton />
+          <PreloadStatus />
+        </div>
+      </PersistentImageCacheProvider>
+    </ImageCacheProvider>
   );
 };
 
