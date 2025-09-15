@@ -6,6 +6,10 @@ import { useProducts } from "../hooks/use-products";
 import { useHighlights } from "../hooks/use-highlights";
 import { useToast } from "../hooks/use-toast";
 import * as XLSX from 'xlsx';
+import { SimpleImageProxy } from '../utils/simple-image-proxy';
+import ImageWithFallback from '../components/ImageWithFallback';
+import OptimizedImage from '../components/OptimizedImage';
+import { preloadCriticalImages } from '../utils/image-preloader';
 
 import { useOrders } from "../hooks/use-orders";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -42,13 +46,14 @@ import { Product } from "../types/product";
 import { Order } from "../hooks/use-orders";
 import GitHubTest from "../components/GitHubTest";
 import BillingComponent from "../components/BillingComponent";
+import DataRecovery from "../components/DataRecovery";
 
 interface AdminProduct extends Product {
   imageUrl?: string;
 }
 
 const AdminDashboard = () => {
-  const { products, categories, addProduct, bulkAddProducts, updateProduct, deleteProduct, refreshProducts } = useProducts();
+  const { products, categories, addProduct, bulkAddProducts, updateProduct, deleteProduct, refreshProducts, emergencyRecovery } = useProducts();
   const { highlights, addHighlight, removeHighlight, updateHighlight, resetToBase: resetHighlights } = useHighlights();
   const { toast } = useToast();
 
@@ -72,6 +77,19 @@ const AdminDashboard = () => {
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
+
+  // Process image URL through proxy if needed
+  const processImageUrl = (imageUrl: string): string => {
+    if (!imageUrl || imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
+      return imageUrl; // Don't process relative URLs or data URLs
+    }
+    return SimpleImageProxy.convertToProxyUrl(imageUrl);
+  };
+
+  // Preload critical images on component mount
+  useEffect(() => {
+    preloadCriticalImages();
+  }, []);
   const [success, setSuccess] = useState("");
   const [newHighlight, setNewHighlight] = useState("");
   const [editingHighlightIndex, setEditingHighlightIndex] = useState<number | null>(null);
@@ -88,6 +106,10 @@ const AdminDashboard = () => {
   const [bulkUploadSuccess, setBulkUploadSuccess] = useState("");
   const [isBulkUploading, setIsBulkUploading] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState(0);
+  
+  // Google Sheets upload state
+  const [sheetsUrl, setSheetsUrl] = useState("");
+  const [isSheetsLoading, setIsSheetsLoading] = useState(false);
   
   // Offset state variables for each metric
   // These values persist in localStorage across page refreshes
@@ -250,7 +272,7 @@ const AdminDashboard = () => {
         });
         
         // Fallback to placeholder image
-        const placeholderUrl = '/images/placeholder.svg';
+        const placeholderUrl = '/placeholder.svg';
         setImagePreview(placeholderUrl);
         setFormData(prev => ({ ...prev, imageUrl: placeholderUrl }));
         
@@ -261,7 +283,7 @@ const AdminDashboard = () => {
 
   // Handle image click for popup
   const handleImageClick = (imageUrl: string, productName: string) => {
-    if (imageUrl && imageUrl !== "/images/placeholder.svg") {
+    if (imageUrl && imageUrl !== "/placeholder.svg") {
       setSelectedImage(imageUrl);
       setSelectedImageAlt(productName);
       setIsImageDialogOpen(true);
@@ -367,7 +389,7 @@ const AdminDashboard = () => {
           category: formData.category,
           description: formData.description,
           inStock: formData.inStock,
-          image: formData.imageUrl || "/images/placeholder.svg"
+          image: formData.imageUrl || "/placeholder.svg"
         });
         
         if (success) {
@@ -400,7 +422,7 @@ const AdminDashboard = () => {
           category: formData.category,
           description: formData.description,
           inStock: formData.inStock,
-          image: formData.imageUrl || "/images/placeholder.svg"
+          image: formData.imageUrl || "/placeholder.svg"
         });
         
         if (success) {
@@ -662,7 +684,7 @@ const AdminDashboard = () => {
             category: String(row[columnMap.category] || '').trim(),
             description: String(row[columnMap.description] || '').trim(),
             inStock: String(row[columnMap.inStock] || '').toUpperCase() === 'TRUE',
-            image: String(row[columnMap.image] || '').trim() || '/images/placeholder.svg'
+            image: String(row[columnMap.image] || '').trim() || '/placeholder.svg'
           };
 
           // Validate required fields
@@ -731,23 +753,86 @@ const AdminDashboard = () => {
 
       // Show processing toast notification
       toast({
-        title: "🔄 Processing Images...",
-        description: `Processing and compressing images for ${parsedProducts.length} products...`,
-        duration: 3000,
+        title: "🚀 Starting Upload...",
+        description: `Processing ${parsedProducts.length} products from Google Sheets. This may take a moment...`,
+        duration: 4000,
       });
 
-      // Convert AdminProduct to Product format (remove imageUrl, use image)
-      const productsToUpload = parsedProducts.map(product => ({
-        name: product.name,
-        price: product.price,
-        category: product.category,
-        description: product.description,
-        inStock: product.inStock,
-        image: product.image || '/images/placeholder.svg'
-      }));
+      // Check for duplicates and filter out existing products
+      const existingProductNames = products.map(p => p.name.toLowerCase().trim());
+      console.log('Existing products count:', products.length);
+      console.log('Existing product names:', existingProductNames.slice(0, 5)); // Show first 5
+      
+      const newProducts = [];
+      const duplicateProducts = [];
+      
+      for (const product of parsedProducts) {
+        const normalizedName = product.name.toLowerCase().trim();
+        if (existingProductNames.includes(normalizedName)) {
+          duplicateProducts.push(product.name);
+        } else {
+          newProducts.push(product);
+        }
+      }
+      
+      console.log('Parsed products count:', parsedProducts.length);
+      console.log('New products count:', newProducts.length);
+      console.log('Duplicate products count:', duplicateProducts.length);
+      console.log('First few new products:', newProducts.slice(0, 3));
+      
+      if (newProducts.length === 0) {
+        setBulkUploadError(`All ${parsedProducts.length} products already exist in the system. No new products to add.`);
+        setIsBulkUploading(false);
+        setIsUploading(false);
+        return;
+      }
+      
+      if (duplicateProducts.length > 0) {
+        console.log(`Skipping ${duplicateProducts.length} duplicate products:`, duplicateProducts);
+        toast({
+          title: "⚠️ Duplicates Found",
+          description: `Skipping ${duplicateProducts.length} duplicate products. Adding ${newProducts.length} new products.`,
+          duration: 4000,
+        });
+      }
 
-      setBulkUploadProgress(30);
+      // Images are already processed in Google Sheets parsing, just convert to upload format
+      const productsToUpload = [];
+      let imagesWithUrls = 0;
+      let imagesWithoutUrls = 0;
+      
+      for (let i = 0; i < newProducts.length; i++) {
+        const product = newProducts[i];
+        
+        // Update progress (10-60% for processing)
+        const progress = 10 + (i / newProducts.length) * 50;
+        setBulkUploadProgress(progress);
+        
+        // Count images
+        if (product.image && product.image !== '/placeholder.svg') {
+          imagesWithUrls++;
+        } else {
+          imagesWithoutUrls++;
+        }
+        
+        productsToUpload.push({
+          name: product.name,
+          price: product.price,
+          category: product.category,
+          description: product.description,
+          inStock: product.inStock,
+          image: product.image
+        });
+        
+        // Update progress message
+        console.log(`Progress: ${i + 1}/${newProducts.length} products processed. Images: ${imagesWithUrls} with URLs, ${imagesWithoutUrls} placeholders`);
+      }
 
+      setBulkUploadProgress(60);
+
+      console.log('Products to upload:', productsToUpload.length);
+      console.log('First product to upload:', productsToUpload[0]);
+      
       // Add all products in a single API call
       const success = await bulkAddProducts(productsToUpload);
       
@@ -755,35 +840,63 @@ const AdminDashboard = () => {
 
       if (success) {
         setBulkUploadProgress(100);
-        setBulkUploadSuccess(`✅ Successfully uploaded ${parsedProducts.length} products in a single operation!`);
         
-        // Show success toast notification
+        const totalImages = productsToUpload.length;
+        const duplicateMessage = duplicateProducts.length > 0 ? ` (${duplicateProducts.length} duplicates skipped)` : '';
+        
+        if (imagesWithUrls === totalImages) {
+          setBulkUploadSuccess(`✅ Successfully uploaded ${newProducts.length} new products with all image URLs!`);
+        } else {
+          setBulkUploadSuccess(`✅ Successfully uploaded ${newProducts.length} new products! ${imagesWithUrls}/${totalImages} with image URLs (${imagesWithoutUrls} placeholders)`);
+        }
+        
+        // Show comprehensive success notification
         toast({
-          title: "🎉 Bulk Upload Completed!",
-          description: `Successfully uploaded ${parsedProducts.length} products with images processed and compressed.`,
-          duration: 5000,
+          title: "🎉 Upload Successful!",
+          description: `Added ${newProducts.length} new products to your store${duplicateMessage}. Images: ${imagesWithUrls} processed, ${imagesWithoutUrls} placeholders.`,
+          duration: 8000,
         });
         
-        console.log(`Successfully uploaded ${parsedProducts.length} products in a single operation!`);
+        // Show additional success alert
+        setTimeout(() => {
+          toast({
+            title: "📊 Upload Summary",
+            description: `• ${newProducts.length} products added\n• ${imagesWithUrls} images processed\n• ${duplicateProducts.length} duplicates skipped\n• Products are now live in your store!`,
+            duration: 10000,
+          });
+        }, 2000);
+        
+        console.log(`✅ SUCCESS: Uploaded ${newProducts.length} new products${duplicateMessage} with ${imagesWithUrls}/${totalImages} image URLs!`);
 
         setParsedProducts([]);
         setBulkUploadFile(null);
+        setSheetsUrl("");
         
         // Reset file input
         const fileInput = document.getElementById('bulk-upload-file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
       } else {
-        setBulkUploadError("❌ Failed to upload products. Please try again.");
+        setBulkUploadError("❌ Failed to upload products. Please check the console for details and try again.");
         
-        // Show error toast notification
+        // Show detailed error notification
         toast({
-          title: "❌ Bulk Upload Failed",
-          description: "Failed to upload products. Please try again.",
+          title: "❌ Upload Failed",
+          description: `Failed to upload ${newProducts.length} products. Check console for details.`,
           variant: "destructive",
-          duration: 5000,
+          duration: 8000,
         });
         
-        console.log('Failed to upload products. Please try again.');
+        // Show additional error details
+        setTimeout(() => {
+          toast({
+            title: "🔧 Troubleshooting",
+            description: "• Check your internet connection\n• Verify GitHub API access\n• Try uploading fewer products at once\n• Check browser console for error details",
+            variant: "destructive",
+            duration: 10000,
+          });
+        }, 2000);
+        
+        console.error('❌ FAILED: Bulk upload failed. Check network, API access, and try again.');
       }
     } catch (error) {
       setBulkUploadError(`Error uploading products: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -809,10 +922,170 @@ const AdminDashboard = () => {
     setParsedProducts([]);
     setBulkUploadError("");
     setBulkUploadSuccess("");
+    setSheetsUrl("");
     
     // Reset file input
     const fileInput = document.getElementById('bulk-upload-file') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  // Google Sheets upload function
+  const handleSheetsUrlUpload = async () => {
+    if (!sheetsUrl) {
+      setBulkUploadError("Please enter a Google Sheets URL.");
+      return;
+    }
+
+    // Validate URL format
+    if (!sheetsUrl.includes('docs.google.com/spreadsheets')) {
+      setBulkUploadError("Please enter a valid Google Sheets URL (must contain 'docs.google.com/spreadsheets').");
+      return;
+    }
+
+    setBulkUploadError("");
+    setBulkUploadSuccess("");
+    setParsedProducts([]);
+    setIsSheetsLoading(true);
+    setBulkUploadProgress(10);
+
+    try {
+      // Convert Google Sheets URL to CSV export URL
+      let csvUrl = sheetsUrl;
+      
+      // Clean the URL first - remove any existing parameters and fragments
+      const cleanUrl = sheetsUrl.split('?')[0].split('#')[0];
+      
+      // Extract sheet ID from the URL
+      const sheetIdMatch = cleanUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!sheetIdMatch) {
+        throw new Error('Invalid Google Sheets URL format. Please use a valid Google Sheets sharing URL.');
+      }
+      
+      const sheetId = sheetIdMatch[1];
+      
+      // Extract gid from original URL if present
+      let gid = '0'; // Default to first sheet
+      const gidMatch = sheetsUrl.match(/[#&]gid=(\d+)/);
+      if (gidMatch) {
+        gid = gidMatch[1];
+      }
+      
+      // Construct the proper CSV export URL
+      csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      
+      console.log('Attempting to fetch CSV from:', csvUrl);
+      
+      const response = await fetch(csvUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch Google Sheets: ${response.status}. Please make sure the sheet is publicly accessible.`);
+      }
+
+      const csvText = await response.text();
+      console.log('Raw CSV data (first 500 chars):', csvText.substring(0, 500));
+      
+      // Check if we got HTML instead of CSV
+      if (csvText.includes('<!DOCTYPE html>') || csvText.includes('<html')) {
+        throw new Error('Google Sheets is not publicly accessible. Please make sure the sheet is set to "Anyone with the link can view" and try again.');
+      }
+      
+      setBulkUploadProgress(30);
+
+      // Parse CSV data with better CSV parsing
+      const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+      console.log('Number of lines:', lines.length);
+      
+      if (lines.length < 2) {
+        throw new Error("Google Sheets must have at least a header row and one data row.");
+      }
+
+      // Better CSV parsing that handles quoted values
+      const parseCSVLine = (line: string): string[] => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        
+        result.push(current.trim());
+        return result;
+      };
+
+      const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, '').trim());
+      console.log('Detected headers:', headers);
+      
+      const requiredColumns = ['Name', 'Price', 'Category', 'Description', 'InStock', 'ImageURL'];
+      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      
+      if (missingColumns.length > 0) {
+        throw new Error(`Missing required columns: ${missingColumns.join(', ')}. Found headers: ${headers.join(', ')}`);
+      }
+
+      setBulkUploadProgress(50);
+
+      const products: AdminProduct[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim().replace(/\r$/, ''); // Remove trailing \r
+        if (!line) continue; // Skip empty lines
+
+        const row = parseCSVLine(line).map(cell => cell.replace(/"/g, '').trim());
+        if (row.length === 0 || !row[0]) continue; // Skip empty rows
+
+        // Process image URL
+        let imageUrl = String(row[5] || '').trim();
+        console.log(`Processing image URL for ${String(row[0] || '').trim()}: "${imageUrl}"`);
+        
+        if (!imageUrl || imageUrl === '' || imageUrl.toLowerCase() === 'none' || imageUrl.toLowerCase() === 'null') {
+          imageUrl = '/placeholder.svg';
+          console.log(`No valid image URL, using placeholder for ${String(row[0] || '').trim()}`);
+        } else {
+          // Use proxy for ALL external URLs to avoid CORS issues
+          console.log(`Converting external URL for ${String(row[0] || '').trim()}: ${imageUrl}`);
+          const originalUrl = imageUrl;
+          imageUrl = SimpleImageProxy.convertToProxyUrl(imageUrl);
+          console.log(`Final image URL for ${String(row[0] || '').trim()}: ${originalUrl} -> ${imageUrl}`);
+        }
+
+        const product: AdminProduct = {
+          id: `temp-${Date.now()}-${i}`,
+          name: String(row[0] || '').trim(),
+          price: parseFloat(row[1]) || 0,
+          category: String(row[2] || '').trim(),
+          description: String(row[3] || '').trim(),
+          inStock: row[4] === 'TRUE' || row[4] === 'true' || row[4] === '1',
+          image: imageUrl,
+          imageUrl: imageUrl
+        };
+
+        if (product.name) {
+          products.push(product);
+        }
+      }
+
+      if (products.length === 0) {
+        throw new Error("No valid products found in the Google Sheets.");
+      }
+
+      setBulkUploadProgress(70);
+      setParsedProducts(products);
+      setBulkUploadSuccess(`Successfully parsed ${products.length} products from Google Sheets.`);
+      setBulkUploadProgress(100);
+    } catch (error) {
+      console.error('Error fetching Google Sheets:', error);
+      setBulkUploadError(`Error fetching Google Sheets: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSheetsLoading(false);
+    }
   };
 
 
@@ -1236,6 +1509,24 @@ const AdminDashboard = () => {
                   Refresh
                 </Button>
                 <Button 
+                  onClick={async () => {
+                    if (window.confirm("🚨 EMERGENCY RECOVERY: This will attempt to recover your products from local storage and sync to GitHub. Continue?")) {
+                      setSuccess("🔄 Starting emergency recovery...");
+                      const success = await emergencyRecovery();
+                      if (success) {
+                        setSuccess("✅ Emergency recovery successful! Products restored.");
+                        setTimeout(() => setSuccess(''), 5000);
+                      } else {
+                        setError("❌ Emergency recovery failed. Check console for details.");
+                      }
+                    }
+                  }}
+                  variant="outline" 
+                  className="text-red-600 border-red-600 hover:bg-red-50 w-full sm:w-auto"
+                >
+                  🚨 Emergency Recovery
+                </Button>
+                <Button 
                   onClick={openAddDialog} 
                   className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
                 >
@@ -1254,18 +1545,63 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-upload-file">Upload Excel File (.xlsx or .xls)</Label>
-                  <Input
-                    id="bulk-upload-file"
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleBulkFileUpload}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-sm text-gray-500">
-                    Excel file must have columns: Name, Price, Category, Description, InStock, ImageURL
-                  </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-upload-file">Upload Excel File (.xlsx or .xls)</Label>
+                    <Input
+                      id="bulk-upload-file"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleBulkFileUpload}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-sm text-gray-500">
+                      Excel file must have columns: Name, Price, Category, Description, InStock, ImageURL
+                    </p>
+                  </div>
+                  
+                  <div className="text-center text-sm text-gray-500">OR</div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="sheets-url">Google Sheets URL</Label>
+                    <Input
+                      id="sheets-url"
+                      type="url"
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      value={sheetsUrl}
+                      onChange={(e) => setSheetsUrl(e.target.value)}
+                      className="w-full"
+                    />
+                    <Button 
+                      onClick={handleSheetsUrlUpload}
+                      disabled={!sheetsUrl || isSheetsLoading || isBulkUploading}
+                      className="w-full"
+                    >
+                      {isSheetsLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Loading Google Sheets...</span>
+                        </div>
+                      ) : (
+                        "Upload from Google Sheets"
+                      )}
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      <strong>ImageURL:</strong> Paste image URLs (Google Drive, direct links, etc.) - URLs are converted to working image links
+                      <br />
+                      <span className="text-red-600 font-medium">⚠️ IMPORTANT: Google Sheets must be set to "Anyone with the link can view" for CSV export to work!</span>
+                      <br />
+                      <span className="text-blue-600 font-medium">💡 How to make Google Sheets public: Click "Share" → Change to "Anyone with the link can view" → Copy the sharing URL</span>
+                      <br />
+                      <span className="text-orange-600 font-medium">📋 URL Format: Use the sharing URL that starts with "https://docs.google.com/spreadsheets/d/"</span>
+                      <br />
+                      <span className="text-red-600 font-medium">⚠️ Google Drive images must also be set to "Anyone with the link can view" for them to work!</span>
+                      <br />
+                      <span className="text-green-600 font-medium">✅ Alternative: Use direct image URLs from Imgur, Dropbox, or other image hosting services.</span>
+                      <br />
+                      <span className="text-blue-600 font-medium">🔧 Image Processing: Google Drive URLs are automatically converted to thumbnail URLs for better compatibility.</span>
+                    </p>
+                  </div>
                 </div>
 
                 {bulkUploadError && (
@@ -1312,7 +1648,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
 
-                    {isBulkUploading && (
+                    {(isBulkUploading || isSheetsLoading) && (
                       <div className="space-y-2">
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
@@ -1320,7 +1656,12 @@ const AdminDashboard = () => {
                             style={{ width: `${bulkUploadProgress}%` }}
                           ></div>
                         </div>
-                        <p className="text-sm text-gray-600">Uploading {parsedProducts.length} products in a single operation... {bulkUploadProgress}%</p>
+                        <p className="text-sm text-gray-600">
+                          {isSheetsLoading ? 
+                            `Loading Google Sheets... ${bulkUploadProgress}%` : 
+                            `Uploading ${parsedProducts.length} products in a single operation... ${bulkUploadProgress}%`
+                          }
+                        </p>
                       </div>
                     )}
 
@@ -1351,15 +1692,14 @@ const AdminDashboard = () => {
                                   className="relative cursor-pointer group"
                                   onClick={() => handleImageClick(product.image, product.name)}
                                 >
-                                  <img
-                                    src={product.image}
-                                    alt={product.name}
-                                    className="w-8 h-8 object-cover rounded transition-opacity duration-200 group-hover:opacity-80"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = '/images/placeholder.svg';
-                                    }}
-                                  />
-                                  {product.image && product.image !== '/images/placeholder.svg' && (
+                              <OptimizedImage
+                                src={processImageUrl(product.image)}
+                                alt={product.name}
+                                className="w-8 h-8 object-cover rounded transition-opacity duration-200 group-hover:opacity-80"
+                                fallbackSrc="/placeholder.svg"
+                                priority={true}
+                              />
+                                  {product.image && product.image !== '/placeholder.svg' && (
                                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded flex items-center justify-center transition-all duration-200">
                                       <ZoomIn className="h-2 w-2 text-white opacity-0 group-hover:opacity-100" />
                                     </div>
@@ -1403,17 +1743,16 @@ const AdminDashboard = () => {
                           <TableCell className="px-3 py-3 w-20">
                             <div 
                               className="relative cursor-pointer group"
-                              onClick={() => handleImageClick(product.image || "/images/placeholder.svg", product.name)}
+                              onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
                             >
-                              <img 
-                                src={product.image || "/images/placeholder.svg"} 
+                              <OptimizedImage
+                                src={processImageUrl(product.image || "/placeholder.svg")}
                                 alt={product.name}
                                 className="w-12 h-12 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
-                                onError={(e) => {
-                                  e.currentTarget.src = "/images/placeholder.svg";
-                                }}
+                                fallbackSrc="/placeholder.svg"
+                                priority={true}
                               />
-                              {product.image && product.image !== "/images/placeholder.svg" && (
+                              {product.image && product.image !== "/placeholder.svg" && (
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-md flex items-center justify-center transition-all duration-200">
                                   <ZoomIn className="h-3 w-3 text-white opacity-0 group-hover:opacity-100" />
                                 </div>
@@ -1628,11 +1967,16 @@ const AdminDashboard = () => {
                 </CardTitle>
               </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="text-sm text-muted-foreground mb-4">
+                    <p>• Highlights appear in the scrolling banner on the home page</p>
+                    <p>• Keep it simple - no emojis needed for better compatibility</p>
+                    <p>• Default: 5 highlights without images</p>
+                  </div>
                   <div className="flex space-x-2">
                     <Input
                       value={newHighlight}
                       onChange={(e) => setNewHighlight(e.target.value)}
-                      placeholder="Enter new highlight text"
+                      placeholder="Enter new highlight text (no emojis)"
                       className="flex-1"
                       disabled={highlightsLoading}
                     />
@@ -1665,6 +2009,29 @@ const AdminDashboard = () => {
                       ) : (
                         "Add Highlight"
                       )}
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={async () => {
+                        if (window.confirm("Reset to 5 default highlights? This will replace all current highlights.")) {
+                          setHighlightsLoading(true);
+                          setHighlightsError(null);
+                          try {
+                            await resetHighlights();
+                            setSuccess("Highlights reset to defaults successfully!");
+                            setTimeout(() => setSuccess(""), 3000);
+                          } catch (err) {
+                            setHighlightsError("Failed to reset highlights. Please try again.");
+                            console.error("Error resetting highlights:", err);
+                          } finally {
+                            setHighlightsLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={highlightsLoading}
+                      className="min-w-[120px]"
+                    >
+                      Reset to Defaults
                     </Button>
                   </div>
 
@@ -1823,6 +2190,9 @@ const AdminDashboard = () => {
 
 
 
+             {/* Data Recovery & Backup */}
+             <DataRecovery onRecoveryComplete={() => window.location.reload()} />
+             
              {/* GitHub API Test */}
              <GitHubTest />
            </TabsContent>
@@ -1950,7 +2320,7 @@ const AdminDashboard = () => {
                         alt="Preview" 
                         className="w-20 h-20 object-cover rounded-md border-2 border-gray-200"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/placeholder.svg';
+                          (e.target as HTMLImageElement).src = '/placeholder.svg';
                         }}
                       />
                       <Button
@@ -2122,7 +2492,7 @@ const AdminDashboard = () => {
                         alt="Preview" 
                         className="w-20 h-20 object-cover rounded-md border-2 border-gray-200"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/placeholder.svg';
+                          (e.target as HTMLImageElement).src = '/placeholder.svg';
                         }}
                       />
                       <Button

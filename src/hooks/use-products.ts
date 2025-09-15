@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Product } from '../types/product';
 import { saveProducts, saveProductsFast, getProducts } from '../utils/github-api';
+import { getProductsData, saveProductsData, emergencySyncToGitHub } from '../utils/data-persistence';
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -11,13 +12,20 @@ export const useProducts = () => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // Get products from GitHub API
-        const fetchedProducts = await getProducts();
-        setProducts(fetchedProducts);
         setError(null);
+        
+        // Use robust data persistence with multiple fallbacks
+        const fetchedProducts = await getProductsData();
+        setProducts(fetchedProducts);
+        
+        console.log(`Loaded ${fetchedProducts.length} products from data persistence service`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch products');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch products';
+        setError(errorMessage);
         console.error('Error fetching products:', err);
+        
+        // Set empty array as fallback
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -26,15 +34,15 @@ export const useProducts = () => {
     fetchProducts();
   }, []);
 
-  // Save products to GitHub
+  // Save products using robust data persistence
   const saveProductsToGitHub = async (newProducts: Product[]) => {
     try {
-      const success = await saveProducts(newProducts);
+      const success = await saveProductsData(newProducts);
       if (success) {
         setProducts(newProducts);
         return true;
       } else {
-        setError('Failed to save products to GitHub');
+        setError('Failed to save products (local storage may have succeeded)');
         return false;
       }
     } catch (err) {
@@ -158,17 +166,52 @@ export const useProducts = () => {
     }
   };
 
-  // Refresh products from GitHub
+  // Refresh products using robust data persistence
   const refreshProducts = async () => {
     try {
       setLoading(true);
-      const fetchedProducts = await getProducts();
-      setProducts(fetchedProducts);
       setError(null);
+      
+      const fetchedProducts = await getProductsData();
+      setProducts(fetchedProducts);
+      
+      console.log(`Refreshed ${fetchedProducts.length} products from data persistence service`);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh products');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh products';
+      setError(errorMessage);
       console.error('Error refreshing products:', err);
+      
+      // Set empty array as fallback
+      setProducts([]);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Emergency recovery function
+  const emergencyRecovery = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Starting emergency recovery...');
+      const results = await emergencySyncToGitHub();
+      
+      if (results.products) {
+        const fetchedProducts = await getProductsData();
+        setProducts(fetchedProducts);
+        console.log('Emergency recovery successful for products');
+        return true;
+      } else {
+        setError('Emergency recovery failed - no data sources available');
+        return false;
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Emergency recovery failed';
+      setError(errorMessage);
+      console.error('Emergency recovery error:', err);
       return false;
     } finally {
       setLoading(false);
@@ -188,6 +231,7 @@ export const useProducts = () => {
     updateProduct,
     deleteProduct,
     saveProductsToGitHub,
-    refreshProducts
+    refreshProducts,
+    emergencyRecovery
   };
 };

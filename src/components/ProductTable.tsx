@@ -1,10 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Product } from "../types/product";
 import { Plus, Minus, ShoppingCart, ZoomIn } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useToast } from "../hooks/use-toast";
+import { SimpleImageProxy } from "../utils/simple-image-proxy";
+import OptimizedImage from "./OptimizedImage";
+import { preloadProductImages } from "../utils/image-preloader";
 
 interface CartItem extends Product {
   quantity: number;
@@ -25,31 +28,35 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
   const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const { toast } = useToast();
   
-  // Ref for scrolling to products section
-  const productsSectionRef = useRef<HTMLDivElement>(null);
+  // Process image URL through proxy if needed
+  const processImageUrl = (imageUrl: string): string => {
+    if (!imageUrl || imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
+      return imageUrl; // Don't process relative URLs or data URLs
+    }
+    return SimpleImageProxy.convertToProxyUrl(imageUrl);
+  };
+
+  // Preload product images when component mounts
+  useEffect(() => {
+    if (products.length > 0) {
+      const imageUrls = products
+        .map(product => processImageUrl(product.image || '/placeholder.svg'))
+        .filter(url => url && !url.startsWith('data:'));
+      
+      if (imageUrls.length > 0) {
+        preloadProductImages(imageUrls);
+      }
+    }
+  }, [products]);
 
   const filteredProducts =
     selectedCategory === "All"
       ? products
       : products.filter((product) => product.category === selectedCategory);
 
-  // Function to scroll to products section
-  const scrollToProducts = () => {
-    if (productsSectionRef.current) {
-      productsSectionRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }
-  };
-
-  // Enhanced category filter handler with scroll
+  // Category filter handler
   const handleCategoryFilter = (category: string) => {
     setSelectedCategory(category);
-    // Small delay to ensure state update before scrolling
-    setTimeout(() => {
-      scrollToProducts();
-    }, 100);
   };
 
   const getQuantityInCart = (productId: string) => {
@@ -146,22 +153,24 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
       </div>
 
       {/* Price List Style Product Cards */}
-      <div ref={productsSectionRef} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredProducts.map((product) => {
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredProducts.map((product, index) => {
           const qty = getQuantityInCart(product.id);
           return (
             <Card key={product.id} className={`card-glow flex flex-col ${!product.inStock ? 'opacity-75' : ''}`}>
               <div className="relative">
                 <div 
                   className="relative cursor-pointer group"
-                  onClick={() => handleImageClick(product.image || "/placeholder.png", product.name)}
+                  onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
                 >
-                  <img
-                    src={product.image || "/placeholder.png"} // 👈 show admin-uploaded image
+                  <OptimizedImage
+                    src={processImageUrl(product.image || "/placeholder.svg")}
                     alt={product.name}
                     className="w-full h-40 object-cover rounded-t-lg transition-opacity duration-200 group-hover:opacity-80"
+                    fallbackSrc="/placeholder.svg"
+                    priority={index < 6} // Prioritize first 6 images
                   />
-                  {product.image && product.image !== "/placeholder.png" && (
+                  {product.image && product.image !== "/placeholder.svg" && (
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-t-lg flex items-center justify-center transition-all duration-200">
                       <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" />
                     </div>
@@ -247,6 +256,9 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
               {selectedImageAlt}
             </DialogTitle>
           </DialogHeader>
+          <div className="sr-only">
+            <p>Product image viewer for {selectedImageAlt}</p>
+          </div>
           <div className="p-6 pt-4">
             <div className="flex justify-center">
               <img

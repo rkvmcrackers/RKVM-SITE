@@ -10,11 +10,13 @@ export const useHighlights = () => {
     const fetchHighlights = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         // Try to get highlights from GitHub first
         let githubHighlights = await getHighlights();
         
-        if (githubHighlights && githubHighlights.length > 0) {
+        // Ensure we have a valid array
+        if (Array.isArray(githubHighlights) && githubHighlights.length > 0) {
           // Use GitHub highlights
           setHighlights(githubHighlights);
         } else {
@@ -23,7 +25,12 @@ export const useHighlights = () => {
             const response = await fetch('/highlights.json');
             if (response.ok) {
               const baseHighlights = await response.json();
-              setHighlights(baseHighlights.highlights);
+              if (Array.isArray(baseHighlights.highlights)) {
+                setHighlights(baseHighlights.highlights);
+              } else {
+                console.warn('Base highlights data is not an array, using empty array');
+                setHighlights([]);
+              }
             } else {
               setHighlights([]);
             }
@@ -32,10 +39,9 @@ export const useHighlights = () => {
             setHighlights([]);
           }
         }
-        
-        setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch highlights');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch highlights';
+        setError(errorMessage);
         console.error('Error fetching highlights:', err);
         setHighlights([]);
       } finally {

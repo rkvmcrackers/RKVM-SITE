@@ -85,11 +85,43 @@ class GitHubAPI {
       }
 
       const data = await response.json();
+      
+      // Check if content exists and is not empty
+      if (!data.content) {
+        console.warn(`File ${path} has no content, returning empty array`);
+        return {
+          content: [],
+          sha: data.sha
+        };
+      }
+
       const content = this.unicodeSafeBase64Decode(data.content);
-      return {
-        content: JSON.parse(content),
-        sha: data.sha
-      };
+      
+      // Check if decoded content is empty or just whitespace
+      if (!content || content.trim() === '') {
+        console.warn(`File ${path} has empty content after decoding, returning empty array`);
+        return {
+          content: [],
+          sha: data.sha
+        };
+      }
+
+      try {
+        const parsedContent = JSON.parse(content);
+        return {
+          content: parsedContent,
+          sha: data.sha
+        };
+      } catch (parseError) {
+        console.error(`Error parsing JSON from file ${path}:`, parseError);
+        console.error(`Raw content that failed to parse:`, content.substring(0, 200) + (content.length > 200 ? '...' : ''));
+        
+        // Return empty array as fallback for invalid JSON
+        return {
+          content: [],
+          sha: data.sha
+        };
+      }
     } catch (error) {
       console.error('Error fetching file from GitHub:', error);
       return null;

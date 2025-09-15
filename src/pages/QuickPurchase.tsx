@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ProductTable from "../components/ProductTable";
 import CheckoutForm from "../components/CheckoutForm";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -17,12 +17,20 @@ interface CartItem extends Product {
 const QuickPurchase = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showDisclaimer, setShowDisclaimer] = useState(true);
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
   const { products, categories, loading, error } = useProducts();
   
   // Minimum order amount
   const MINIMUM_ORDER_AMOUNT = 3000;
+
+  // Check if user has already seen the disclaimer
+  useEffect(() => {
+    const hasSeenDisclaimer = localStorage.getItem('quickPurchaseDisclaimerSeen');
+    if (!hasSeenDisclaimer) {
+      setShowDisclaimer(true);
+    }
+  }, []);
 
   const handleCartUpdate = (items: CartItem[]) => {
     setCartItems(items);
@@ -54,6 +62,8 @@ const QuickPurchase = () => {
 
   const handleDisclaimerAccept = () => {
     if (disclaimerAccepted) {
+      // Save to localStorage that user has seen the disclaimer
+      localStorage.setItem('quickPurchaseDisclaimerSeen', 'true');
       setShowDisclaimer(false);
     }
   };
@@ -146,7 +156,7 @@ const QuickPurchase = () => {
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {!showCheckout ? (
-          <div className="space-y-8">
+          <div className="space-y-8 pb-32">
             {/* Product Selection */}
             <Card className="card-glow">
               <CardHeader>
@@ -184,8 +194,8 @@ const QuickPurchase = () => {
 
             {/* Minimum Order Alert */}
             {cartItems.length > 0 && !isMinimumOrderMet() && (
-              <div className="sticky bottom-4 z-10 mb-4">
-                <Alert className="border-orange-200 bg-orange-50 animate-pulse">
+              <div className="fixed bottom-20 left-4 right-4 z-0 pointer-events-none">
+                <Alert className="border-orange-200 bg-orange-50/90 backdrop-blur-sm shadow-lg">
                   <AlertCircle className="h-4 w-4 text-orange-600" />
                   <AlertDescription className="text-orange-800 font-semibold">
                     <span className="animate-blink">⚠️ Minimum order ₹{MINIMUM_ORDER_AMOUNT} required</span>
@@ -200,7 +210,7 @@ const QuickPurchase = () => {
 
             {/* Checkout Button */}
             {cartItems.length > 0 && (
-              <div className="sticky bottom-4 z-10">
+              <div className="sticky bottom-4 z-20">
                 <Card className={`card-glow border-primary/20 bg-card/95 backdrop-blur-md ${!isMinimumOrderMet() ? 'opacity-75' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col items-center gap-4">
@@ -268,7 +278,20 @@ const QuickPurchase = () => {
         {!showCheckout && (
           <Card className="mt-12 card-glow">
             <CardHeader>
-              <CardTitle>Need Help?</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Need Help?</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    localStorage.removeItem('quickPurchaseDisclaimerSeen');
+                    setShowDisclaimer(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Show Safety Notice Again
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">

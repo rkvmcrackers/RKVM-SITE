@@ -28,12 +28,24 @@ export const useOrders = () => {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const fetchedOrders = await getOrders();
-      setOrders(fetchedOrders);
       setError(null);
+      
+      const fetchedOrders = await getOrders();
+      
+      // Ensure we have a valid array
+      if (Array.isArray(fetchedOrders)) {
+        setOrders(fetchedOrders);
+      } else {
+        console.warn('Received non-array orders data, using empty array');
+        setOrders([]);
+      }
     } catch (err) {
-      setError('Failed to load orders');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load orders';
+      setError(errorMessage);
       console.error('Error loading orders:', err);
+      
+      // Set empty array as fallback
+      setOrders([]);
     } finally {
       setLoading(false);
     }

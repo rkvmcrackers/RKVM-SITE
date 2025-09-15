@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useProducts } from "../hooks/use-products";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -7,6 +7,9 @@ import { Input } from "../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Search, Download, Sparkles, ZoomIn, Filter, SortAsc, SortDesc } from "lucide-react";
+import OptimizedImage from "../components/OptimizedImage";
+import { SimpleImageProxy } from "../utils/simple-image-proxy";
+import { preloadProductImages } from "../utils/image-preloader";
 
 const PriceList = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -20,6 +23,27 @@ const PriceList = () => {
   
   // Ref for scrolling to products section
   const productsSectionRef = useRef<HTMLDivElement>(null);
+
+  // Process image URL through proxy if needed
+  const processImageUrl = (imageUrl: string): string => {
+    if (!imageUrl || imageUrl.startsWith('/') || imageUrl.startsWith('data:')) {
+      return imageUrl; // Don't process relative URLs or data URLs
+    }
+    return SimpleImageProxy.convertToProxyUrl(imageUrl);
+  };
+
+  // Preload product images when component mounts
+  useEffect(() => {
+    if (products.length > 0) {
+      const imageUrls = products
+        .map(product => processImageUrl(product.image || '/placeholder.svg'))
+        .filter(url => url && !url.startsWith('data:'));
+      
+      if (imageUrls.length > 0) {
+        preloadProductImages(imageUrls);
+      }
+    }
+  }, [products]);
 
   const filteredProducts = products
     .filter((product) => {
@@ -275,19 +299,6 @@ Thank you for choosing RKVM Crackers! 🎆
               </div>
             )}
             
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <p className="text-muted-foreground">
-                  Showing {filteredProducts.length} product
-                  {filteredProducts.length !== 1 ? "s" : ""}
-                  {selectedCategory !== "All" && ` in ${selectedCategory}`}
-                  {searchTerm && ` matching "${searchTerm}"`}
-                </p>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Total Value: ₹{filteredProducts.reduce((sum, product) => sum + product.price, 0).toLocaleString('en-IN')}
-              </div>
-            </div>
           </div>
         )}
 
@@ -359,10 +370,12 @@ Thank you for choosing RKVM Crackers! 🎆
                                 className="relative cursor-pointer group inline-block"
                                 onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                               >
-                                <img
-                                  src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
+                                <OptimizedImage
+                                  src={processImageUrl(product.image || "/placeholder.svg")}
                                   alt={product.name}
                                   className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
+                                  fallbackSrc="/placeholder.svg"
+                                  priority={index < 10} // Prioritize first 10 images
                                 />
                                 {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
@@ -425,10 +438,12 @@ Thank you for choosing RKVM Crackers! 🎆
                         className="relative cursor-pointer group w-full h-full"
                         onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                       >
-                        <img
-                          src={product.image || "https://via.placeholder.com/300x200?text=No+Image"}
+                        <OptimizedImage
+                          src={processImageUrl(product.image || "/placeholder.svg")}
                           alt={product.name}
                           className="w-full h-full object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
+                          fallbackSrc="/placeholder.svg"
+                          priority={false} // Mobile images don't need priority
                         />
                         {product.image && product.image !== "https://via.placeholder.com/300x200?text=No+Image" && (
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
@@ -507,10 +522,8 @@ Thank you for choosing RKVM Crackers! 🎆
                   Pricing Notes:
                 </h4>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li>• All prices are in Indian Rupees (₹)</li>
                   <li>• Prices may vary during festival seasons</li>
                   <li>• Bulk discounts available on large orders</li>
-                  <li>• Free delivery on orders above ₹500</li>
                 </ul>
               </div>
               <div>
@@ -518,10 +531,8 @@ Thank you for choosing RKVM Crackers! 🎆
                   Safety & Quality:
                 </h4>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li>• All products are safety certified</li>
                   <li>• Quality tested before delivery</li>
                   <li>• Follow safety instructions carefully</li>
-                  <li>• Keep away from children</li>
                 </ul>
               </div>
             </div>
