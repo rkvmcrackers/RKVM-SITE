@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useToast } from "../hooks/use-toast";
 import { SimpleImageProxy } from "../utils/simple-image-proxy";
-import OptimizedImage from "./OptimizedImage";
-import { preloadProductImages } from "../utils/image-preloader";
+import InstantLoadingImage from "./InstantLoadingImage";
+import { aggressivePreloader } from "../utils/aggressive-preloader";
 
 interface CartItem extends Product {
   quantity: number;
@@ -36,16 +36,11 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
     return SimpleImageProxy.convertToProxyUrl(imageUrl);
   };
 
-  // Preload product images when component mounts
+  // Aggressively preload all images when products load
   useEffect(() => {
     if (products.length > 0) {
-      const imageUrls = products
-        .map(product => processImageUrl(product.image || '/placeholder.svg'))
-        .filter(url => url && !url.startsWith('data:'));
-      
-      if (imageUrls.length > 0) {
-        preloadProductImages(imageUrls);
-      }
+      console.log(`🚀 ProductTable: Starting aggressive preload of ${products.length} images...`);
+      aggressivePreloader.preloadAllImages(products);
     }
   }, [products]);
 
@@ -163,7 +158,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
                   className="relative cursor-pointer group"
                   onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
                 >
-                  <OptimizedImage
+                  <InstantLoadingImage
                     src={processImageUrl(product.image || "/placeholder.svg")}
                     alt={product.name}
                     className="w-full h-40 object-cover rounded-t-lg transition-opacity duration-200 group-hover:opacity-80"

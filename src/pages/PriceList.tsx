@@ -7,9 +7,9 @@ import { Input } from "../components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Search, Download, Sparkles, ZoomIn, Filter, SortAsc, SortDesc } from "lucide-react";
-import OptimizedImage from "../components/OptimizedImage";
+import InstantLoadingImage from "../components/InstantLoadingImage";
 import { SimpleImageProxy } from "../utils/simple-image-proxy";
-import { preloadProductImages } from "../utils/image-preloader";
+import { aggressivePreloader } from "../utils/aggressive-preloader";
 
 const PriceList = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -32,16 +32,11 @@ const PriceList = () => {
     return SimpleImageProxy.convertToProxyUrl(imageUrl);
   };
 
-  // Preload product images when component mounts
+  // Aggressively preload all images when products load
   useEffect(() => {
     if (products.length > 0) {
-      const imageUrls = products
-        .map(product => processImageUrl(product.image || '/placeholder.svg'))
-        .filter(url => url && !url.startsWith('data:'));
-      
-      if (imageUrls.length > 0) {
-        preloadProductImages(imageUrls);
-      }
+      console.log(`🚀 PriceList: Starting aggressive preload of ${products.length} images...`);
+      aggressivePreloader.preloadAllImages(products);
     }
   }, [products]);
 
@@ -322,7 +317,7 @@ const PriceList = () => {
                                 className="relative cursor-pointer group inline-block"
                                 onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                               >
-                                <OptimizedImage
+                                <InstantLoadingImage
                                   src={processImageUrl(product.image || "/placeholder.svg")}
                                   alt={product.name}
                                   className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"
@@ -390,7 +385,7 @@ const PriceList = () => {
                         className="relative cursor-pointer group w-full h-full"
                         onClick={() => handleImageClick(product.image || "https://via.placeholder.com/300x200?text=No+Image", product.name)}
                       >
-                        <OptimizedImage
+                        <InstantLoadingImage
                           src={processImageUrl(product.image || "/placeholder.svg")}
                           alt={product.name}
                           className="w-full h-full object-cover rounded-lg border-2 border-gray-200 transition-all duration-200 group-hover:border-primary group-hover:shadow-md"

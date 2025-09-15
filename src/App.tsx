@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,12 +17,18 @@ import GitHubTestPage from "./pages/GitHubTestPage";
 import NotFound from "./pages/NotFound";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 import { useScrollToTop } from "./hooks/use-scroll-to-top";
+import { aggressivePreloader } from "./utils/aggressive-preloader";
 
 const queryClient = new QueryClient();
 
 // Main App component with scroll to top functionality
 const AppContent = () => {
   useScrollToTop(); // This will scroll to top on every route change
+
+  // Preload critical images immediately when app starts
+  React.useEffect(() => {
+    aggressivePreloader.preloadCriticalImages();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">

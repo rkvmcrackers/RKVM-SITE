@@ -9,6 +9,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Sparkles, ArrowLeft, ShoppingCart, AlertCircle, Shield } from "lucide-react";
 import { Product } from "../types/product";
 import { useProducts } from "../hooks/use-products";
+import { aggressivePreloader } from "../utils/aggressive-preloader";
 import { scrollToTop } from "../utils/scroll-utils";
 
 interface CartItem extends Product {
@@ -32,6 +33,14 @@ const QuickPurchase = () => {
       setShowDisclaimer(true);
     }
   }, []);
+
+  // Aggressively preload all images when products load
+  useEffect(() => {
+    if (products.length > 0) {
+      console.log(`🚀 QuickPurchase: Starting aggressive preload of ${products.length} images...`);
+      aggressivePreloader.preloadAllImages(products);
+    }
+  }, [products]);
 
   const handleCartUpdate = (items: CartItem[]) => {
     setCartItems(items);

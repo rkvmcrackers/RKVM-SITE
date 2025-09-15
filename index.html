@@ -63,6 +63,16 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
+      
+      /* Shimmer animation for loading */
+      .animate-shimmer {
+        animation: shimmer 1.5s infinite;
+      }
+      
+      @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+      }
     </style>
   </head>
 
