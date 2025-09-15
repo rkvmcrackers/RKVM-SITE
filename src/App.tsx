@@ -14,8 +14,36 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import GitHubTestPage from "./pages/GitHubTestPage";
 import NotFound from "./pages/NotFound";
+import ScrollToTopButton from "./components/ScrollToTopButton";
+import { useScrollToTop } from "./hooks/use-scroll-to-top";
 
 const queryClient = new QueryClient();
+
+// Main App component with scroll to top functionality
+const AppContent = () => {
+  useScrollToTop(); // This will scroll to top on every route change
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/price-list" element={<PriceList />} />
+          <Route path="/quick-purchase" element={<QuickPurchase />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/admin" element={<AdminLogin />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/github-test" element={<GitHubTestPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+      <Footer />
+      <LegalPopup />
+      <ScrollToTopButton />
+    </div>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -28,23 +56,7 @@ const App = () => (
           v7_relativeSplatPath: true
         }}
       >
-        <div className="min-h-screen flex flex-col">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/price-list" element={<PriceList />} />
-              <Route path="/quick-purchase" element={<QuickPurchase />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/admin" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/github-test" element={<GitHubTestPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
-          <LegalPopup />
-        </div>
+        <AppContent />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

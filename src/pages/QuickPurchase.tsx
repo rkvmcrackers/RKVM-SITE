@@ -9,6 +9,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Sparkles, ArrowLeft, ShoppingCart, AlertCircle, Shield } from "lucide-react";
 import { Product } from "../types/product";
 import { useProducts } from "../hooks/use-products";
+import { scrollToTop } from "../utils/scroll-utils";
 
 interface CartItem extends Product {
   quantity: number;
@@ -39,6 +40,7 @@ const QuickPurchase = () => {
   const handleOrderComplete = () => {
     setCartItems([]);
     setShowCheckout(false);
+    scrollToTop(); // Scroll to top after order completion
   };
 
   const getTotalItems = () => {
