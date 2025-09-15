@@ -1479,12 +1479,12 @@ const AdminDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                   <TabsList className="grid w-full grid-cols-4">
-           <TabsTrigger value="products">Products</TabsTrigger>
-           <TabsTrigger value="orders">Orders</TabsTrigger>
-           <TabsTrigger value="billing">Billing</TabsTrigger>
-           <TabsTrigger value="settings">Settings</TabsTrigger>
-         </TabsList>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 gap-1">
+            <TabsTrigger value="products" className="text-xs md:text-sm">Products</TabsTrigger>
+            <TabsTrigger value="orders" className="text-xs md:text-sm">Orders</TabsTrigger>
+            <TabsTrigger value="billing" className="text-xs md:text-sm">Billing</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs md:text-sm">Settings</TabsTrigger>
+          </TabsList>
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-6">
@@ -1719,86 +1719,168 @@ const AdminDashboard = () => {
             {/* Products Table */}
             <Card className="-mx-4 sm:-mx-6 lg:-mx-8">
               <CardContent className="p-0">
-                <Table className="w-full">
-                  <TableHeader>
-                    <TableRow className="border-b">
-                      <TableHead className="px-3 py-3 w-20">Image</TableHead>
-                      <TableHead className="px-3 py-3">Name</TableHead>
-                      <TableHead className="px-3 py-3 w-24">Actions</TableHead>
-                      <TableHead className="px-3 py-3 w-32">Category</TableHead>
-                      <TableHead className="px-3 py-3 w-20">Price</TableHead>
-                      <TableHead className="px-3 py-3 w-24">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          No products available. Add your first product to get started!
-                        </TableCell>
+                {/* Desktop Table */}
+                <div className="hidden md:block">
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow className="border-b">
+                        <TableHead className="px-3 py-3 w-20">Image</TableHead>
+                        <TableHead className="px-3 py-3">Name</TableHead>
+                        <TableHead className="px-3 py-3 w-24">Actions</TableHead>
+                        <TableHead className="px-3 py-3 w-32">Category</TableHead>
+                        <TableHead className="px-3 py-3 w-20">Price</TableHead>
+                        <TableHead className="px-3 py-3 w-24">Status</TableHead>
                       </TableRow>
-                    ) : (
-                      products.map((product) => (
-                        <TableRow key={product.id} className="transition-all duration-200 hover:bg-gray-50">
-                          <TableCell className="px-3 py-3 w-20">
+                    </TableHeader>
+                    <TableBody>
+                      {products.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            No products available. Add your first product to get started!
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        products.map((product) => (
+                          <TableRow key={product.id} className="transition-all duration-200 hover:bg-gray-50">
+                            <TableCell className="px-3 py-3 w-20">
+                              <div 
+                                className="relative cursor-pointer group"
+                                onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
+                              >
+                                <OptimizedImage
+                                  src={processImageUrl(product.image || "/placeholder.svg")}
+                                  alt={product.name}
+                                  className="w-12 h-12 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
+                                  fallbackSrc="/placeholder.svg"
+                                  priority={true}
+                                />
+                                {product.image && product.image !== "/placeholder.svg" && (
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-md flex items-center justify-center transition-all duration-200">
+                                    <ZoomIn className="h-3 w-3 text-white opacity-0 group-hover:opacity-100" />
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-3 py-3">
+                              <div>
+                                <div className="font-medium text-sm truncate">{product.name}</div>
+                                <div className="text-xs text-gray-500 truncate">{product.description}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-3 py-3 w-24">
+                              <div className="flex space-x-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditDialog(product as AdminProduct)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-3 py-3 w-32">
+                              <Badge variant="secondary" className="text-xs">{product.category}</Badge>
+                            </TableCell>
+                            <TableCell className="px-3 py-3 font-medium w-20">₹{product.price}</TableCell>
+                            <TableCell className="px-3 py-3 w-24">
+                              <Badge variant={product.inStock ? "default" : "secondary"} className="text-xs">
+                                {product.inStock ? "In Stock" : "Out of Stock"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Table */}
+                <div className="md:hidden">
+                  {products.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 px-4">
+                      No products available. Add your first product to get started!
+                    </div>
+                  ) : (
+                    <div className="space-y-4 p-4">
+                      {products.map((product) => (
+                        <div key={product.id} className="border rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                          {/* Mobile Layout: Image, Edit Icon, Product Name */}
+                          <div className="flex items-center space-x-3 mb-3">
+                            {/* 1. Image */}
                             <div 
-                              className="relative cursor-pointer group"
+                              className="relative cursor-pointer group flex-shrink-0"
                               onClick={() => handleImageClick(product.image || "/placeholder.svg", product.name)}
                             >
                               <OptimizedImage
                                 src={processImageUrl(product.image || "/placeholder.svg")}
                                 alt={product.name}
-                                className="w-12 h-12 object-cover rounded-md transition-opacity duration-200 group-hover:opacity-80"
+                                className="w-14 h-14 object-cover rounded-lg transition-opacity duration-200 group-hover:opacity-80"
                                 fallbackSrc="/placeholder.svg"
                                 priority={true}
                               />
                               {product.image && product.image !== "/placeholder.svg" && (
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-md flex items-center justify-center transition-all duration-200">
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg flex items-center justify-center transition-all duration-200">
                                   <ZoomIn className="h-3 w-3 text-white opacity-0 group-hover:opacity-100" />
                                 </div>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell className="px-3 py-3">
-                            <div>
-                              <div className="font-medium text-sm truncate">{product.name}</div>
-                              <div className="text-xs text-gray-500 truncate">{product.description}</div>
+                            
+                            {/* 2. Edit Icon (Second Element) */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditDialog(product as AdminProduct)}
+                              className="h-12 w-12 p-0 rounded-lg flex-shrink-0"
+                            >
+                              <Edit className="h-5 w-5" />
+                            </Button>
+
+                            {/* 3. Product Name (Third Element) */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base text-gray-900 leading-tight truncate">{product.name}</h3>
+                              {product.description && (
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{product.description}</p>
+                              )}
                             </div>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 w-24">
-                            <div className="flex space-x-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openEditDialog(product as AdminProduct)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                          </div>
+
+                          {/* Second Row: Price, Category, Status */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-lg text-gray-900">₹{product.price}</span>
+                              <Badge variant="secondary" className="text-xs">{product.category}</Badge>
                             </div>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 w-32">
-                            <Badge variant="secondary" className="text-xs">{product.category}</Badge>
-                          </TableCell>
-                          <TableCell className="px-3 py-3 font-medium w-20">₹{product.price}</TableCell>
-                          <TableCell className="px-3 py-3 w-24">
                             <Badge variant={product.inStock ? "default" : "secondary"} className="text-xs">
                               {product.inStock ? "In Stock" : "Out of Stock"}
                             </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                          </div>
+
+                          {/* Third Row: Delete Button */}
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="h-10 px-4 rounded-lg"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
