@@ -127,62 +127,14 @@ const PriceList = () => {
   };
 
   const downloadPriceList = () => {
-    let priceListText = `
-RKVM CRACKERS - PRICE LIST
-==========================
-Date: ${new Date().toLocaleDateString()}
-
-Contact Information:
-Phone: 9750153358
-Customer Support: 7010918595
-Email: rkvmcrackers@gmail.com
-
-PRODUCTS & PRICES:
-==================
-
-`;
-
-    categories
-      .slice(1)
-      .forEach((category) => {
-        const categoryProducts = products.filter(
-          (p) => p.category === category
-        );
-        if (categoryProducts.length > 0) {
-          priceListText += `\n${category.toUpperCase()}:\n`;
-          priceListText += "".padEnd(category.length + 1, "-") + "\n";
-
-          categoryProducts.forEach((product, index) => {
-            priceListText += `${index + 1}. ${product.name.padEnd(25)} - ₹${product.price}\n`;
-            priceListText += `   ${product.description}\n\n`;
-          });
-        }
-      });
-
-    priceListText += `
-NOTES:
-======
-- All prices are in Indian Rupees (₹)
-- Prices are subject to change during festival seasons
-- Bulk discounts available on large orders
-- Free delivery on orders above ₹500
-
-For orders and inquiries:
-Call: 9750153358
-Email: rkvmcrackers@gmail.com
-
-Thank you for choosing RKVM Crackers! 🎆
-`;
-
-    const blob = new Blob([priceListText], { type: "text/plain" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `RKVM_PriceList_${new Date().toISOString().split("T")[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    // Create a link to download the PDF file
+    const link = document.createElement("a");
+    link.href = "/RKVM_Pricelist_2025_Colour.pdf";
+    link.download = "RKVM_Pricelist_2025_Colour.pdf";
+    link.target = "_blank"; // Open in new tab as fallback
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -203,7 +155,7 @@ Thank you for choosing RKVM Crackers! 🎆
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button onClick={downloadPriceList} className="btn-festive">
               <Download className="h-4 w-4 mr-2" />
-              Download Price List
+              Download PDF Price List
             </Button>
             <Button variant="outline" asChild>
               <a href="tel:9750153358">Call for Bulk Orders</a>
