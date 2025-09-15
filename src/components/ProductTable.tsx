@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Product } from "../types/product";
 import { Plus, Minus, ShoppingCart, ZoomIn } from "lucide-react";
 import { Button } from "./ui/button";
@@ -27,6 +27,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [selectedImageAlt, setSelectedImageAlt] = useState<string>("");
   const { toast } = useToast();
+  const productsSectionRef = useRef<HTMLDivElement>(null);
   
   // Process image URL through proxy if needed
   const processImageUrl = (imageUrl: string): string => {
@@ -52,6 +53,16 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
   // Category filter handler
   const handleCategoryFilter = (category: string) => {
     setSelectedCategory(category);
+    
+    // Scroll to products section after a short delay to allow state update
+    setTimeout(() => {
+      if (productsSectionRef.current) {
+        productsSectionRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }, 100);
   };
 
   const getQuantityInCart = (productId: string) => {
@@ -131,7 +142,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
         <Button
           onClick={() => handleCategoryFilter("All")}
           variant={selectedCategory === "All" ? "default" : "outline"}
-          className={selectedCategory === "All" ? "btn-festive" : ""}
+          className={`${selectedCategory === "All" ? "btn-festive" : ""} transition-all duration-200 hover:scale-105`}
         >
           All
         </Button>
@@ -140,7 +151,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
             key={category}
             onClick={() => handleCategoryFilter(category)}
             variant={selectedCategory === category ? "default" : "outline"}
-            className={selectedCategory === category ? "btn-festive" : ""}
+            className={`${selectedCategory === category ? "btn-festive" : ""} transition-all duration-200 hover:scale-105`}
           >
             {category}
           </Button>
@@ -148,7 +159,7 @@ const ProductTable = ({ onCartUpdate, cartItems = [], products, categories }: Pr
       </div>
 
       {/* Price List Style Product Cards */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={productsSectionRef} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProducts.map((product, index) => {
           const qty = getQuantityInCart(product.id);
           return (
