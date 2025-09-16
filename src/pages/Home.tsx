@@ -87,11 +87,6 @@ const Home = () => {
                 Shop Now
               </Button>
             </Link>
-            <Link to="/price-list">
-              <Button size="lg" variant="outline" className="text-primary border-white hover:bg-white hover:text-primary text-lg px-8 py-3">
-                View Prices
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
@@ -189,14 +184,14 @@ const Home = () => {
       ))}
     </div>
     
-    {/* Call to Action */}
-    <div className="text-center mt-12">
-      <Link to="/price-list">
-        <Button size="lg" className="btn-festive text-lg px-8 py-3">
-          View All Combo Offers
-        </Button>
-      </Link>
-    </div>
+     {/* Call to Action */}
+     <div className="text-center mt-12">
+       <Link to="/quick-purchase">
+         <Button size="lg" className="btn-festive text-lg px-8 py-3">
+           View All Combo Offers
+         </Button>
+       </Link>
+     </div>
   </div>
 </section>
 
@@ -307,11 +302,6 @@ const Home = () => {
             <Link to="/quick-purchase">
               <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
                 Start Shopping
-              </Button>
-            </Link>
-            <Link to="/price-list">
-              <Button size="lg" variant="outline" className="text-primary border-white hover:bg-white hover:text-primary text-lg px-8 py-3">
-                See All Prices
               </Button>
             </Link>
           </div>

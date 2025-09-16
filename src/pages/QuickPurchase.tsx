@@ -238,7 +238,10 @@ const QuickPurchase = () => {
                         )}
                       </div>
                       <Button
-                        onClick={() => setShowCheckout(true)}
+                        onClick={() => {
+                          setShowCheckout(true);
+                          scrollToTop(); // Scroll to top when proceeding to checkout
+                        }}
                         disabled={!isMinimumOrderMet()}
                         className={`text-lg px-8 py-3 w-full sm:w-auto ${
                           isMinimumOrderMet() 
